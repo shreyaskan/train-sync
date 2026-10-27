@@ -1,14 +1,12 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import { cn } from "cn";
 import Calendar from "./pages/Calendar.js";
-import Dashboard from "./pages/Dashboard.js";
 import Plans from "./pages/Plans.js";
 import PlanDetail from "./pages/PlanDetail.js";
 import Sessions from "./pages/Sessions.js";
 
 const navLinks = [
   { to: "/", label: "Calendar", end: true },
-  { to: "/activities", label: "Activities" },
   { to: "/plans", label: "Plans" },
   { to: "/sessions", label: "Sessions" },
 ];
@@ -40,7 +38,6 @@ export default function App() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Routes>
           <Route path="/" element={<Calendar />} />
-          <Route path="/activities" element={<Dashboard />} />
           <Route path="/plans" element={<Plans />} />
           <Route path="/plans/:id" element={<PlanDetail />} />
           <Route path="/sessions" element={<Sessions />} />

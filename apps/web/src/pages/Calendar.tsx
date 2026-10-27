@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -51,7 +52,9 @@ function formatClock(seconds: number) {
 function ActivityStats({ activity }: { activity: Activity }) {
   return (
     <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-      <div className="truncate text-foreground">{activity.name ?? "Untitled"}</div>
+      <div className="truncate text-base font-bold text-foreground">
+        {activity.name ?? "Untitled"}
+      </div>
       <div>Distance: {formatKm(activity.distanceM ?? 0)}</div>
       <div>Time: {formatClock(activity.durationSec)}</div>
       {activity.avgHr != null && <div>Avg HR: {activity.avgHr}bpm</div>}
@@ -64,15 +67,35 @@ export default function Calendar() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [anchor, setAnchor] = useState(() => mondayOf(new Date()));
+  const [syncing, setSyncing] = useState(false);
+  const [syncDays, setSyncDays] = useState(30);
+  const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
 
-  useEffect(() => {
+  const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
       .then(([sessions, activities]) => {
         setSessions(sessions);
         setActivities(activities);
       })
       .catch((e) => setError(String(e)));
+
+  useEffect(() => {
+    load();
   }, []);
+
+  const sync = async (opts: { full?: boolean; days?: number } = {}) => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const result = await api.syncActivities(opts);
+      setLastResult(result);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (error) return <p className="text-destructive">{error}</p>;
 
@@ -110,6 +133,28 @@ export default function Calendar() {
             Next <ChevronRight />
           </Button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min={1}
+          value={syncDays}
+          onChange={(e) => setSyncDays(Number(e.target.value))}
+          className="w-16"
+        />
+        <span className="text-sm text-muted-foreground">days</span>
+        <Button size="sm" onClick={() => sync({ days: syncDays })} disabled={syncing}>
+          {syncing ? "Syncing..." : "Sync from Garmin"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => sync({ full: true })} disabled={syncing}>
+          Full history sync
+        </Button>
+        {lastResult && (
+          <span className="text-sm text-muted-foreground">
+            Synced {lastResult.synced}, matched {lastResult.matched} to sessions.
+          </span>
+        )}
       </div>
 
       <div className="rounded-lg border border-border">
