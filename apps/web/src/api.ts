@@ -2,7 +2,9 @@ const BASE = "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    // Fastify's JSON parser rejects an empty body sent with this header
+    // (e.g. DELETE), so only set it when there's actually a body to parse.
+    headers: options?.body ? { "Content-Type": "application/json" } : undefined,
     ...options,
   });
   if (!res.ok) throw new Error(`${options?.method ?? "GET"} ${path} failed: ${res.status}`);
@@ -51,4 +53,5 @@ export const api = {
     request<Session>("/sessions", { method: "POST", body: JSON.stringify(data) }),
   updateSession: (id: string, data: Partial<Pick<Session, "title" | "targetDistance">>) =>
     request<Session>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
 };

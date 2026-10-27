@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +83,8 @@ export default function Calendar() {
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
@@ -114,18 +116,21 @@ export default function Calendar() {
     setDialog({ mode: "add", date });
     setFormTitle("");
     setFormDistance("");
+    setConfirmingDelete(false);
   };
 
   const openEditDialog = (session: Session) => {
     setDialog({ mode: "edit", session });
     setFormTitle(session.title);
     setFormDistance(session.targetDistance != null ? String(session.targetDistance / 1000) : "");
+    setConfirmingDelete(false);
   };
 
   const closeDialog = () => {
     setDialog(null);
     setFormTitle("");
     setFormDistance("");
+    setConfirmingDelete(false);
   };
 
   const submitSession = async (e: React.FormEvent) => {
@@ -150,6 +155,24 @@ export default function Calendar() {
       setError(String(e));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteSession = async () => {
+    if (!dialog || dialog.mode !== "edit") return;
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.deleteSession(dialog.session.id);
+      closeDialog();
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -367,7 +390,21 @@ export default function Calendar() {
                 placeholder="5"
               />
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
+              {dialog?.mode === "edit" ? (
+                <Button
+                  type="button"
+                  variant={confirmingDelete ? "destructive" : "ghost"}
+                  size="icon"
+                  disabled={deleting}
+                  onClick={deleteSession}
+                  title={confirmingDelete ? "Click again to confirm" : "Delete session"}
+                >
+                  <Trash2 />
+                </Button>
+              ) : (
+                <span />
+              )}
               <Button type="submit" disabled={saving || !formTitle.trim()}>
                 {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add session"}
               </Button>
