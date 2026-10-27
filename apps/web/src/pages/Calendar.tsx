@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { cn } from "cn";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Table,
   TableBody,
@@ -37,26 +38,45 @@ type AddKind = "session" | "easy-run" | "gym";
 
 const ADD_CONFIG: Record<
   AddKind,
-  { showTitle: boolean; showType: boolean; typeOptions: SessionType[]; defaultType: SessionType }
+  {
+    showTitle: boolean;
+    showType: boolean;
+    showDescription: boolean;
+    typeOptions: SessionType[];
+    defaultType: SessionType;
+    defaultTitle: string;
+  }
 > = {
   session: {
     showTitle: true,
     showType: true,
+    showDescription: false,
     typeOptions: ["training", "race", "time trial"],
     defaultType: "training",
+    defaultTitle: "",
   },
-  "easy-run": { showTitle: false, showType: false, typeOptions: [], defaultType: "training" },
+  "easy-run": {
+    showTitle: false,
+    showType: false,
+    showDescription: false,
+    typeOptions: [],
+    defaultType: "training",
+    defaultTitle: "",
+  },
   gym: {
     showTitle: true,
-    showType: true,
-    typeOptions: ["training", "race", "time trial", "gym"],
+    showType: false,
+    showDescription: true,
+    typeOptions: [],
     defaultType: "gym",
+    defaultTitle: "Gym",
   },
 };
 
 type SessionDialogState =
   | { mode: "add"; kind: AddKind; date: Date }
-  | { mode: "edit"; session: Session };
+  | { mode: "edit"; session: Session }
+  | { mode: "complete-gym"; session: Session };
 
 // Each session type gets its own card background so the type is visible at a
 // glance on the calendar without showing a text label.
@@ -151,8 +171,10 @@ export default function Calendar() {
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
   const [formType, setFormType] = useState<SessionType>("training");
+  const [formDescription, setFormDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completing, setCompleting] = useState(false);
 
   const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
@@ -183,9 +205,10 @@ export default function Calendar() {
   const openAddDialog = (date: Date, kind: AddKind) => {
     const cfg = ADD_CONFIG[kind];
     setDialog({ mode: "add", kind, date });
-    setFormTitle("");
+    setFormTitle(cfg.defaultTitle);
     setFormDistance("");
     setFormType(cfg.defaultType);
+    setFormDescription("");
   };
 
   const openEditDialog = (session: Session) => {
@@ -197,6 +220,12 @@ export default function Calendar() {
         ? (session.type as SessionType)
         : "training",
     );
+    setFormDescription("");
+  };
+
+  const openCompleteGymDialog = (session: Session) => {
+    setDialog({ mode: "complete-gym", session });
+    setFormDescription(session.description ?? "");
   };
 
   const closeDialog = () => {
@@ -204,6 +233,7 @@ export default function Calendar() {
     setFormTitle("");
     setFormDistance("");
     setFormType("training");
+    setFormDescription("");
   };
 
   // "Rest" has no dialog — it adds a fixed card immediately.
@@ -219,25 +249,28 @@ export default function Calendar() {
 
   const submitSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dialog) return;
+    if (!dialog || dialog.mode === "complete-gym") return;
     const isEasyRun = dialog.mode === "add" && dialog.kind === "easy-run";
     if (isEasyRun ? !formDistance.trim() : !formTitle.trim()) return;
 
     setSaving(true);
     try {
       const targetDistance = formDistance ? Number(formDistance) * 1000 : undefined;
+      const description = formDescription.trim() ? formDescription : undefined;
       if (dialog.mode === "add") {
         await api.createSession({
           date: dialog.date.toISOString(),
           title: isEasyRun ? `Easy ${formDistance}` : formTitle,
           type: isEasyRun ? "training" : formType,
           targetDistance,
+          description,
         });
       } else {
         await api.updateSession(dialog.session.id, {
           title: formTitle,
           type: formType,
           targetDistance,
+          description,
         });
       }
       closeDialog();
@@ -263,11 +296,30 @@ export default function Calendar() {
     }
   };
 
+  const completeGymSession = async () => {
+    if (!dialog || dialog.mode !== "complete-gym") return;
+    setCompleting(true);
+    try {
+      await api.updateSession(dialog.session.id, {
+        description: formDescription,
+        completed: true,
+      });
+      closeDialog();
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const formConfig = !dialog
     ? null
     : dialog.mode === "edit"
-      ? { showTitle: true, showType: true, typeOptions: [...ALL_TYPES] }
-      : ADD_CONFIG[dialog.kind];
+      ? { showTitle: true, showType: true, showDescription: false, typeOptions: [...ALL_TYPES] }
+      : dialog.mode === "add"
+        ? ADD_CONFIG[dialog.kind]
+        : null;
 
   if (error) return <p className="text-destructive">{error}</p>;
 
@@ -415,15 +467,26 @@ export default function Calendar() {
                               key={s.id}
                               className={`group/card relative rounded-md ${sessionBg(s)} p-3`}
                             >
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="absolute top-1 right-1 opacity-0 transition-opacity group-hover/card:opacity-100"
-                                onClick={() => openEditDialog(s)}
-                              >
-                                <Pencil />
-                              </Button>
-                              <div className="flex items-center gap-1.5 pr-6 text-base font-bold">
+                              <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover/card:opacity-100">
+                                {s.type === "gym" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    title="Complete gym session"
+                                    onClick={() => openCompleteGymDialog(s)}
+                                  >
+                                    <Check />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => openEditDialog(s)}
+                                >
+                                  <Pencil />
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-1.5 pr-14 text-base font-bold">
                                 {s.completed && (
                                   <CheckCircle2 className="size-4 shrink-0 text-primary" />
                                 )}
@@ -511,75 +574,96 @@ export default function Calendar() {
                 )}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={submitSession} className="space-y-4">
-            {formConfig?.showTitle && (
+          {dialog?.mode === "complete-gym" ? (
+            <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="session-title">Title</Label>
+                <Label>Description</Label>
+                <RichTextEditor value={formDescription} onChange={setFormDescription} />
+              </div>
+              <DialogFooter>
+                <Button onClick={completeGymSession} disabled={completing}>
+                  {completing ? "Completing..." : "Complete"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={submitSession} className="space-y-4">
+              {formConfig?.showTitle && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="session-title">Title</Label>
+                  <Input
+                    id="session-title"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="Easy 5k"
+                    autoFocus
+                  />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="session-distance">Distance (km)</Label>
                 <Input
-                  id="session-title"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Easy 5k"
-                  autoFocus
+                  id="session-distance"
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  value={formDistance}
+                  onChange={(e) => setFormDistance(e.target.value)}
+                  placeholder="5"
+                  autoFocus={!formConfig?.showTitle}
                 />
               </div>
-            )}
-            <div className="space-y-1.5">
-              <Label htmlFor="session-distance">Distance (km)</Label>
-              <Input
-                id="session-distance"
-                type="number"
-                step="0.1"
-                min={0}
-                value={formDistance}
-                onChange={(e) => setFormDistance(e.target.value)}
-                placeholder="5"
-                autoFocus={!formConfig?.showTitle}
-              />
-            </div>
-            {formConfig?.showType && (
-              <div className="space-y-1.5">
-                <Label>Type</Label>
-                <Select value={formType} onValueChange={(v) => setFormType(v as SessionType)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formConfig.typeOptions.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t[0].toUpperCase() + t.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <DialogFooter className="sm:justify-between">
-              {dialog?.mode === "edit" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  disabled={deleting}
-                  onClick={deleteSession}
-                  title="Delete session"
-                >
-                  <Trash2 />
-                </Button>
-              ) : (
-                <span />
+              {formConfig?.showType && (
+                <div className="space-y-1.5">
+                  <Label>Type</Label>
+                  <Select value={formType} onValueChange={(v) => setFormType(v as SessionType)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formConfig.typeOptions.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t[0].toUpperCase() + t.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-              <Button
-                type="submit"
-                disabled={
-                  saving || (formConfig?.showTitle === false ? !formDistance.trim() : !formTitle.trim())
-                }
-              >
-                {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add"}
-              </Button>
-            </DialogFooter>
-          </form>
+              {formConfig?.showDescription && (
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <RichTextEditor value={formDescription} onChange={setFormDescription} />
+                </div>
+              )}
+              <DialogFooter className="sm:justify-between">
+                {dialog?.mode === "edit" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={deleting}
+                    onClick={deleteSession}
+                    title="Delete session"
+                  >
+                    <Trash2 />
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <Button
+                  type="submit"
+                  disabled={
+                    saving ||
+                    (formConfig?.showTitle === false ? !formDistance.trim() : !formTitle.trim())
+                  }
+                >
+                  {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

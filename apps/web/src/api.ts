@@ -51,7 +51,11 @@ export const api = {
   getSessions: () => request<Session[]>("/sessions"),
   createSession: (data: Partial<Session> & { date: string; type: string; title: string }) =>
     request<Session>("/sessions", { method: "POST", body: JSON.stringify(data) }),
-  updateSession: (id: string, data: Partial<Pick<Session, "title" | "type" | "targetDistance">>) =>
-    request<Session>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  updateSession: (
+    id: string,
+    data: Partial<
+      Pick<Session, "title" | "type" | "targetDistance" | "description" | "completed">
+    >,
+  ) => request<Session>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
 };
