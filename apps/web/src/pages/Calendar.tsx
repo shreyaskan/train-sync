@@ -81,12 +81,17 @@ function formatClock(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function ActivityStats({ activity }: { activity: Activity }) {
+// showName is false when nested inside a session card, which already shows
+// the session's own title — the Garmin activity's name (e.g. "Reading
+// Running") shouldn't override or duplicate the planned session's name.
+function ActivityStats({ activity, showName = true }: { activity: Activity; showName?: boolean }) {
   return (
     <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-      <div className="truncate text-base font-bold text-foreground">
-        {activity.name ?? "Untitled"}
-      </div>
+      {showName && (
+        <div className="truncate text-base font-bold text-foreground">
+          {activity.name ?? "Untitled"}
+        </div>
+      )}
       <div>Distance: {formatKm(activity.distanceM ?? 0)}</div>
       <div>Time: {formatClock(activity.durationSec)}</div>
       {activity.avgHr != null && <div>Avg HR: {activity.avgHr}bpm</div>}
@@ -350,7 +355,9 @@ export default function Calendar() {
                                   {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
                                 </div>
                               )}
-                              {s.activity && <ActivityStats activity={s.activity} />}
+                              {s.activity && (
+                                <ActivityStats activity={s.activity} showName={false} />
+                              )}
                             </div>
                           ))}
                           {dayUnmatched.map((a) => (
