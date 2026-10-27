@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,10 +27,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type SessionDialogState = { mode: "add"; date: Date } | { mode: "edit"; session: Session };
+const ALL_TYPES = ["training", "race", "time trial", "gym", "rest"] as const;
+type SessionType = (typeof ALL_TYPES)[number];
 
-const SESSION_TYPES = ["training", "race", "time trial", "gym"] as const;
-const DEFAULT_SESSION_TYPE: (typeof SESSION_TYPES)[number] = "training";
+// The three "quick add" buttons (besides the generic "Session" one) each
+// create a session with a fixed/implied type and a reduced field set.
+type AddKind = "session" | "easy-run" | "gym";
+
+const ADD_CONFIG: Record<
+  AddKind,
+  { showTitle: boolean; showType: boolean; typeOptions: SessionType[]; defaultType: SessionType }
+> = {
+  session: {
+    showTitle: true,
+    showType: true,
+    typeOptions: ["training", "race", "time trial"],
+    defaultType: "training",
+  },
+  "easy-run": { showTitle: false, showType: false, typeOptions: [], defaultType: "training" },
+  gym: {
+    showTitle: true,
+    showType: true,
+    typeOptions: ["training", "race", "time trial", "gym"],
+    defaultType: "gym",
+  },
+};
+
+type SessionDialogState =
+  | { mode: "add"; kind: AddKind; date: Date }
+  | { mode: "edit"; session: Session };
 
 // Each session type gets its own card background so the type is visible at a
 // glance on the calendar without showing a text label.
@@ -39,11 +64,12 @@ const SESSION_TYPE_BG: Record<string, string> = {
   race: "bg-[#ff0000]/40",
   "time trial": "bg-amber-500/15",
   gym: "bg-[#f0ba65]/40",
+  rest: "bg-[#e3d56b]/40",
 };
 const ACTIVITY_BG = "bg-[#81d13f]/40";
 
 function sessionBg(type: string) {
-  return SESSION_TYPE_BG[type] ?? SESSION_TYPE_BG[DEFAULT_SESSION_TYPE];
+  return SESSION_TYPE_BG[type] ?? SESSION_TYPE_BG.training;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -111,7 +137,7 @@ export default function Calendar() {
   const [dialog, setDialog] = useState<SessionDialogState | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
-  const [formType, setFormType] = useState<string>(DEFAULT_SESSION_TYPE);
+  const [formType, setFormType] = useState<SessionType>("training");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -141,11 +167,12 @@ export default function Calendar() {
     }
   };
 
-  const openAddDialog = (date: Date) => {
-    setDialog({ mode: "add", date });
+  const openAddDialog = (date: Date, kind: AddKind) => {
+    const cfg = ADD_CONFIG[kind];
+    setDialog({ mode: "add", kind, date });
     setFormTitle("");
     setFormDistance("");
-    setFormType(DEFAULT_SESSION_TYPE);
+    setFormType(cfg.defaultType);
   };
 
   const openEditDialog = (session: Session) => {
@@ -153,9 +180,9 @@ export default function Calendar() {
     setFormTitle(session.title);
     setFormDistance(session.targetDistance != null ? String(session.targetDistance / 1000) : "");
     setFormType(
-      (SESSION_TYPES as readonly string[]).includes(session.type)
-        ? session.type
-        : DEFAULT_SESSION_TYPE,
+      (ALL_TYPES as readonly string[]).includes(session.type)
+        ? (session.type as SessionType)
+        : "training",
     );
   };
 
@@ -163,20 +190,34 @@ export default function Calendar() {
     setDialog(null);
     setFormTitle("");
     setFormDistance("");
-    setFormType(DEFAULT_SESSION_TYPE);
+    setFormType("training");
+  };
+
+  // "Rest" has no dialog — it adds a fixed card immediately.
+  const addRestSession = async (date: Date) => {
+    setError(null);
+    try {
+      await api.createSession({ date: date.toISOString(), title: "Rest", type: "rest" });
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   const submitSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dialog || !formTitle.trim()) return;
+    if (!dialog) return;
+    const isEasyRun = dialog.mode === "add" && dialog.kind === "easy-run";
+    if (isEasyRun ? !formDistance.trim() : !formTitle.trim()) return;
+
     setSaving(true);
     try {
       const targetDistance = formDistance ? Number(formDistance) * 1000 : undefined;
       if (dialog.mode === "add") {
         await api.createSession({
           date: dialog.date.toISOString(),
-          title: formTitle,
-          type: formType,
+          title: isEasyRun ? `Easy ${formDistance}` : formTitle,
+          type: isEasyRun ? "training" : formType,
           targetDistance,
         });
       } else {
@@ -208,6 +249,12 @@ export default function Calendar() {
       setDeleting(false);
     }
   };
+
+  const formConfig = !dialog
+    ? null
+    : dialog.mode === "edit"
+      ? { showTitle: true, showType: true, typeOptions: [...ALL_TYPES] }
+      : ADD_CONFIG[dialog.kind];
 
   if (error) return <p className="text-destructive">{error}</p>;
 
@@ -349,7 +396,7 @@ export default function Calendar() {
                                 )}
                                 <span className="truncate">{s.title}</span>
                               </div>
-                              {!s.activity && (
+                              {!s.activity && s.type !== "rest" && (
                                 <div className="mt-1 text-sm text-muted-foreground">
                                   Distance:{" "}
                                   {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
@@ -365,14 +412,40 @@ export default function Calendar() {
                               <ActivityStats activity={a} />
                             </div>
                           ))}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full flex-1 border border-dashed border-border text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={() => openAddDialog(day)}
-                          >
-                            <Plus />
-                          </Button>
+                          <div className="grid flex-1 grid-cols-2 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="border border-dashed border-border text-muted-foreground"
+                              onClick={() => openAddDialog(day, "easy-run")}
+                            >
+                              Easy run
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="border border-dashed border-border text-muted-foreground"
+                              onClick={() => openAddDialog(day, "session")}
+                            >
+                              Session
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="border border-dashed border-border text-muted-foreground"
+                              onClick={() => addRestSession(day)}
+                            >
+                              Rest
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="border border-dashed border-border text-muted-foreground"
+                              onClick={() => openAddDialog(day, "gym")}
+                            >
+                              Gym
+                            </Button>
+                          </div>
                         </div>
                       </TableCell>
                     );
@@ -406,16 +479,18 @@ export default function Calendar() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={submitSession} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="session-title">Title</Label>
-              <Input
-                id="session-title"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="Easy 5k"
-                autoFocus
-              />
-            </div>
+            {formConfig?.showTitle && (
+              <div className="space-y-1.5">
+                <Label htmlFor="session-title">Title</Label>
+                <Input
+                  id="session-title"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="Easy 5k"
+                  autoFocus
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="session-distance">Distance (km)</Label>
               <Input
@@ -426,23 +501,26 @@ export default function Calendar() {
                 value={formDistance}
                 onChange={(e) => setFormDistance(e.target.value)}
                 placeholder="5"
+                autoFocus={!formConfig?.showTitle}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <Select value={formType} onValueChange={setFormType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SESSION_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t[0].toUpperCase() + t.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {formConfig?.showType && (
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <Select value={formType} onValueChange={(v) => setFormType(v as SessionType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formConfig.typeOptions.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t[0].toUpperCase() + t.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <DialogFooter className="sm:justify-between">
               {dialog?.mode === "edit" ? (
                 <Button
@@ -459,8 +537,13 @@ export default function Calendar() {
               ) : (
                 <span />
               )}
-              <Button type="submit" disabled={saving || !formTitle.trim()}>
-                {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add session"}
+              <Button
+                type="submit"
+                disabled={
+                  saving || (formConfig?.showTitle === false ? !formDistance.trim() : !formTitle.trim())
+                }
+              >
+                {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add"}
               </Button>
             </DialogFooter>
           </form>
