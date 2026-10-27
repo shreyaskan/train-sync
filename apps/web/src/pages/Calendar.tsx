@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
@@ -225,11 +224,6 @@ export default function Calendar() {
                               </div>
                               <div className="mt-1 flex items-center gap-1.5">
                                 <Badge variant="secondary">{s.type}</Badge>
-                                {s.plan && (
-                                  <span className="truncate text-sm text-muted-foreground">
-                                    {s.plan.name}
-                                  </span>
-                                )}
                               </div>
                               {s.activity && <ActivityStats activity={s.activity} />}
                             </div>
@@ -259,10 +253,6 @@ export default function Calendar() {
           </TableBody>
         </Table>
       </div>
-
-      <Link to="/plans" className="text-sm text-primary hover:underline">
-        View plans
-      </Link>
     </div>
   );
 }

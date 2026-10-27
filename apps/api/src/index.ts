@@ -4,7 +4,6 @@ import { resolve, dirname } from "node:path";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { activityRoutes } from "./routes/activities.js";
-import { planRoutes } from "./routes/plans.js";
 import { sessionRoutes } from "./routes/sessions.js";
 import { startScheduler } from "./sync/scheduler.js";
 
@@ -17,7 +16,6 @@ const app = Fastify({ logger: true });
 
 await app.register(cors, { origin: true });
 await app.register(activityRoutes);
-await app.register(planRoutes);
 await app.register(sessionRoutes);
 
 app.get("/health", async () => ({ ok: true }));

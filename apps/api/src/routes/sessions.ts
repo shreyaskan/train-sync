@@ -4,14 +4,13 @@ import { prisma } from "../db.js";
 export async function sessionRoutes(app: FastifyInstance) {
   app.get("/sessions", async () => {
     return prisma.session.findMany({
-      include: { activity: true, plan: true },
+      include: { activity: true },
       orderBy: { date: "asc" },
     });
   });
 
   app.post("/sessions", async (req) => {
     const body = req.body as {
-      planId?: string;
       date: string;
       type: string;
       title: string;
@@ -21,7 +20,6 @@ export async function sessionRoutes(app: FastifyInstance) {
     };
     return prisma.session.create({
       data: {
-        planId: body.planId,
         date: new Date(body.date),
         type: body.type,
         title: body.title,

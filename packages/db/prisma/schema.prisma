@@ -34,20 +34,8 @@ model Activity {
   session Session?
 }
 
-model Plan {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  startDate   DateTime?
-  endDate     DateTime?
-  sessions    Session[]
-  createdAt   DateTime  @default(now())
-}
-
 model Session {
   id             String    @id @default(cuid())
-  plan           Plan?     @relation(fields: [planId], references: [id])
-  planId         String?
   date           DateTime
   type           String
   title          String

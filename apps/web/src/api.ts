@@ -22,18 +22,8 @@ export interface Activity {
   calories: number | null;
 }
 
-export interface Plan {
-  id: string;
-  name: string;
-  description: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  sessions: Session[];
-}
-
 export interface Session {
   id: string;
-  planId: string | null;
   date: string;
   type: string;
   title: string;
@@ -43,7 +33,6 @@ export interface Session {
   completed: boolean;
   activityId: string | null;
   activity?: Activity | null;
-  plan?: { id: string; name: string } | null;
 }
 
 export const api = {
@@ -56,11 +45,6 @@ export const api = {
       method: "POST",
     });
   },
-
-  getPlans: () => request<Plan[]>("/plans"),
-  getPlan: (id: string) => request<Plan>(`/plans/${id}`),
-  createPlan: (data: { name: string; description?: string }) =>
-    request<Plan>("/plans", { method: "POST", body: JSON.stringify(data) }),
 
   getSessions: () => request<Session[]>("/sessions"),
   createSession: (data: Partial<Session> & { date: string; type: string; title: string }) =>
