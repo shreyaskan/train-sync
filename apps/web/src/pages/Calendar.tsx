@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -12,6 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const SESSION_TYPES = ["training", "race", "time trial", "gym"] as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -70,6 +87,12 @@ export default function Calendar() {
   const [syncDays, setSyncDays] = useState(30);
   const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
 
+  const [addDate, setAddDate] = useState<Date | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDistance, setNewDistance] = useState("");
+  const [newType, setNewType] = useState<string>("training");
+  const [adding, setAdding] = useState(false);
+
   const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
       .then(([sessions, activities]) => {
@@ -93,6 +116,33 @@ export default function Calendar() {
       setError(String(e));
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const closeAddDialog = () => {
+    setAddDate(null);
+    setNewTitle("");
+    setNewDistance("");
+    setNewType("training");
+  };
+
+  const addSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addDate || !newTitle.trim()) return;
+    setAdding(true);
+    try {
+      await api.createSession({
+        date: addDate.toISOString(),
+        title: newTitle,
+        type: newType,
+        targetDistance: newDistance ? Number(newDistance) * 1000 : undefined,
+      });
+      closeAddDialog();
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -212,8 +262,11 @@ export default function Calendar() {
                       sameDay(day, new Date(a.startTime)),
                     );
                     return (
-                      <TableCell key={day.toISOString()} className="align-top whitespace-normal">
-                        <div className="min-h-[104px] space-y-2">
+                      <TableCell
+                        key={day.toISOString()}
+                        className="group align-top whitespace-normal"
+                      >
+                        <div className="flex min-h-[104px] flex-col space-y-2">
                           {daySessions.map((s) => (
                             <div key={s.id} className="rounded-md bg-accent/60 p-3">
                               <div className="flex items-center gap-1.5 text-sm font-medium">
@@ -233,6 +286,14 @@ export default function Calendar() {
                               <ActivityStats activity={a} />
                             </div>
                           ))}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full flex-1 border border-dashed border-border text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                            onClick={() => setAddDate(day)}
+                          >
+                            <Plus />
+                          </Button>
                         </div>
                       </TableCell>
                     );
@@ -253,6 +314,61 @@ export default function Calendar() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={addDate !== null} onOpenChange={(open) => !open && closeAddDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Add session
+              {addDate && ` — ${addDate.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}`}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={addSession} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="session-title">Title</Label>
+              <Input
+                id="session-title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Easy 5k"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="session-distance">Distance (km)</Label>
+              <Input
+                id="session-distance"
+                type="number"
+                step="0.1"
+                min={0}
+                value={newDistance}
+                onChange={(e) => setNewDistance(e.target.value)}
+                placeholder="5"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={newType} onValueChange={setNewType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SESSION_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t[0].toUpperCase() + t.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={adding || !newTitle.trim()}>
+                {adding ? "Adding..." : "Add session"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
