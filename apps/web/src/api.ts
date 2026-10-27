@@ -41,10 +41,14 @@ export interface Session {
 
 export const api = {
   getActivities: () => request<Activity[]>("/activities"),
-  syncActivities: (full = false) =>
-    request<{ synced: number; pages: number }>(`/activities/sync?full=${full}`, {
+  syncActivities: (opts: { full?: boolean; days?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.full) params.set("full", "true");
+    if (opts.days) params.set("days", String(opts.days));
+    return request<{ synced: number; pages: number }>(`/activities/sync?${params}`, {
       method: "POST",
-    }),
+    });
+  },
 
   getPlans: () => request<Plan[]>("/plans"),
   createPlan: (data: { name: string; description?: string }) =>

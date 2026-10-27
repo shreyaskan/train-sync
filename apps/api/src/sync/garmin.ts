@@ -24,20 +24,26 @@ async function persistToken(gc: InstanceType<typeof GarminConnect>) {
   });
 }
 
-async function loginWithCredentials(gc: InstanceType<typeof GarminConnect>) {
-  const email = process.env.GARMIN_EMAIL;
+function newClient() {
+  const username = process.env.GARMIN_EMAIL;
   const password = process.env.GARMIN_PASSWORD;
-  if (!email || !password) {
+  if (!username || !password) {
     throw new Error("GARMIN_EMAIL and GARMIN_PASSWORD must be set");
   }
-  await gc.login(email, password);
+  // The constructor requires non-empty credentials even when we end up
+  // reusing a saved token below and never call login() with them.
+  return new GarminConnect({ username, password });
+}
+
+async function loginWithCredentials(gc: InstanceType<typeof GarminConnect>) {
+  await gc.login();
   await persistToken(gc);
 }
 
 async function getClient() {
   if (client) return client;
 
-  const gc = new GarminConnect();
+  const gc = newClient();
   const saved = await prisma.garminAuth.findUnique({ where: { id: AUTH_ID } });
 
   if (saved) {
@@ -62,17 +68,22 @@ async function getClient() {
 interface SyncOptions {
   /** Keep paginating through full activity history instead of stopping at the first already-synced activity. */
   full?: boolean;
+  /** Only sync activities from the last N days — also bounds how many pages a full sync has to walk. */
+  days?: number;
 }
 
 // Garmin returns activities newest-first. For an incremental sync we page
 // through until we hit one we've already stored, since that means everything
 // after it is already synced; a full sync instead pages until Garmin runs
-// out of history (or we hit the safety cap).
-export async function syncActivities({ full = false }: SyncOptions = {}) {
+// out of history (or we hit the safety cap). A `days` cutoff stops either
+// mode early once activities get older than the window, which is what
+// actually keeps a sync fast.
+export async function syncActivities({ full = false, days }: SyncOptions = {}) {
   const gc = await getClient();
   const knownIds = new Set(
     (await prisma.activity.findMany({ select: { garminId: true } })).map((a) => a.garminId),
   );
+  const cutoff = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
   let synced = 0;
   let page = 0;
@@ -81,11 +92,15 @@ export async function syncActivities({ full = false }: SyncOptions = {}) {
     const activities = await gc.getActivities(page * PAGE_SIZE, PAGE_SIZE);
     if (activities.length === 0) break;
 
-    let hitKnownActivity = false;
+    let stop = false;
     for (const a of activities) {
       const garminId = String(a.activityId);
+      if (cutoff && new Date(a.startTimeLocal) < cutoff) {
+        stop = true;
+        break;
+      }
       if (!full && knownIds.has(garminId)) {
-        hitKnownActivity = true;
+        stop = true;
         break;
       }
 
@@ -118,7 +133,7 @@ export async function syncActivities({ full = false }: SyncOptions = {}) {
       synced++;
     }
 
-    if (hitKnownActivity || activities.length < PAGE_SIZE) break;
+    if (stop || activities.length < PAGE_SIZE) break;
   }
 
   return { synced, pages: page + 1 };
