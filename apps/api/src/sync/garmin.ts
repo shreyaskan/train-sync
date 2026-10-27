@@ -84,22 +84,32 @@ function utcDayRange(date: Date) {
 
 // Links a newly-synced activity to a planned session on the same day with a
 // matching type, so completing a workout on Garmin marks the plan done
-// without manual bookkeeping.
+// without manual bookkeeping. A day can have several sessions of the same
+// type (e.g. warm up / main set / cool down as separate planned sessions),
+// so this picks whichever unmatched candidate's planned time is closest to
+// the activity's actual start time rather than just the first one found —
+// sessions need a real time set (not just a date) for that to disambiguate.
 async function matchToSession(activityId: string, startTime: Date, typeKey: string | undefined) {
   const { start, end } = utcDayRange(startTime);
-  const session = await prisma.session.findFirst({
+  const candidates = await prisma.session.findMany({
     where: {
       completed: false,
       activityId: null,
       type: normalizeType(typeKey),
       date: { gte: start, lt: end },
     },
-    orderBy: { date: "asc" },
   });
-  if (!session) return false;
+  if (candidates.length === 0) return false;
+
+  const closest = candidates.reduce((best, c) =>
+    Math.abs(c.date.getTime() - startTime.getTime()) <
+    Math.abs(best.date.getTime() - startTime.getTime())
+      ? c
+      : best,
+  );
 
   await prisma.session.update({
-    where: { id: session.id },
+    where: { id: closest.id },
     data: { completed: true, activityId },
   });
   return true;

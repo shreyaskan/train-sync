@@ -27,7 +27,12 @@ export default function Sessions() {
       <h1>Sessions</h1>
       <form onSubmit={createSession}>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input
+          type="datetime-local"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          title="Set a specific time if you have multiple sessions of the same type on the same day (e.g. warm up / main set / cool down) — sync matches each synced activity to the closest planned time."
+        />
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="run">Run</option>
           <option value="bike">Bike</option>
@@ -39,7 +44,7 @@ export default function Sessions() {
       <ul>
         {sessions.map((s) => (
           <li key={s.id}>
-            {new Date(s.date).toLocaleDateString()} — {s.type} — {s.title}{" "}
+            {new Date(s.date).toLocaleString()} — {s.type} — {s.title}{" "}
             {s.completed ? "✅" : ""}
           </li>
         ))}
