@@ -69,8 +69,12 @@ const SESSION_TYPE_BG: Record<string, string> = {
 };
 const ACTIVITY_BG = "bg-[#81d13f]/40";
 
-function sessionBg(type: string) {
-  return SESSION_TYPE_BG[type] ?? SESSION_TYPE_BG.training;
+// A completed session (matched to a real Garmin activity) turns the same
+// green as a standalone activity card, overriding its type color — type
+// matters while it's still planned, completion matters once it's done.
+function sessionBg(session: Session) {
+  if (session.completed) return ACTIVITY_BG;
+  return SESSION_TYPE_BG[session.type] ?? SESSION_TYPE_BG.training;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -409,7 +413,7 @@ export default function Calendar() {
                           {daySessions.map((s) => (
                             <div
                               key={s.id}
-                              className={`group/card relative rounded-md ${sessionBg(s.type)} p-3`}
+                              className={`group/card relative rounded-md ${sessionBg(s)} p-3`}
                             >
                               <Button
                                 variant="ghost"
