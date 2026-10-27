@@ -213,7 +213,7 @@ export default function Calendar() {
                     );
                     return (
                       <TableCell key={day.toISOString()} className="align-top whitespace-normal">
-                        <div className="space-y-2">
+                        <div className="min-h-[104px] space-y-2">
                           {daySessions.map((s) => (
                             <div key={s.id} className="rounded-md bg-accent/60 p-3">
                               <div className="flex items-center gap-1.5 text-sm font-medium">
