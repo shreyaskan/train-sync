@@ -65,6 +65,46 @@ async function getClient() {
   return gc;
 }
 
+// Maps Garmin's activityType.typeKey values (e.g. "street_running",
+// "lap_swimming") onto the small set of types used for planned sessions.
+function normalizeType(typeKey: string | undefined): string {
+  const key = typeKey ?? "";
+  if (key.includes("running")) return "run";
+  if (key.includes("cycling") || key.includes("biking")) return "bike";
+  if (key.includes("swim")) return "swim";
+  if (key.includes("strength") || key.includes("training")) return "strength";
+  return key || "other";
+}
+
+function utcDayRange(date: Date) {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
+// Links a newly-synced activity to a planned session on the same day with a
+// matching type, so completing a workout on Garmin marks the plan done
+// without manual bookkeeping.
+async function matchToSession(activityId: string, startTime: Date, typeKey: string | undefined) {
+  const { start, end } = utcDayRange(startTime);
+  const session = await prisma.session.findFirst({
+    where: {
+      completed: false,
+      activityId: null,
+      type: normalizeType(typeKey),
+      date: { gte: start, lt: end },
+    },
+    orderBy: { date: "asc" },
+  });
+  if (!session) return false;
+
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { completed: true, activityId },
+  });
+  return true;
+}
+
 interface SyncOptions {
   /** Keep paginating through full activity history instead of stopping at the first already-synced activity. */
   full?: boolean;
@@ -86,6 +126,7 @@ export async function syncActivities({ full = false, days }: SyncOptions = {}) {
   const cutoff = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
   let synced = 0;
+  let matched = 0;
   let page = 0;
 
   for (; page < MAX_PAGES; page++) {
@@ -104,7 +145,7 @@ export async function syncActivities({ full = false, days }: SyncOptions = {}) {
         break;
       }
 
-      await prisma.activity.upsert({
+      const activityRecord = await prisma.activity.upsert({
         where: { garminId },
         update: {
           type: a.activityType?.typeKey ?? "unknown",
@@ -131,10 +172,17 @@ export async function syncActivities({ full = false, days }: SyncOptions = {}) {
         },
       });
       synced++;
+
+      const didMatch = await matchToSession(
+        activityRecord.id,
+        activityRecord.startTime,
+        a.activityType?.typeKey,
+      );
+      if (didMatch) matched++;
     }
 
     if (stop || activities.length < PAGE_SIZE) break;
   }
 
-  return { synced, pages: page + 1 };
+  return { synced, matched, pages: page + 1 };
 }

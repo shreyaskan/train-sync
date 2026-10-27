@@ -6,6 +6,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
+  const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
 
   const load = () => api.getActivities().then(setActivities).catch((e) => setError(String(e)));
 
@@ -17,7 +18,8 @@ export default function Dashboard() {
     setSyncing(true);
     setError(null);
     try {
-      await api.syncActivities(opts);
+      const result = await api.syncActivities(opts);
+      setLastResult(result);
       await load();
     } catch (e) {
       setError(String(e));
@@ -44,6 +46,11 @@ export default function Dashboard() {
         {syncing ? "Syncing..." : "Full history sync"}
       </button>
       {error && <p style={{ color: "red" }}>{error}</p>}
+      {lastResult && (
+        <p>
+          Synced {lastResult.synced} activities, matched {lastResult.matched} to planned sessions.
+        </p>
+      )}
       <ul>
         {activities.map((a) => (
           <li key={a.id}>

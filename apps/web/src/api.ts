@@ -45,7 +45,7 @@ export const api = {
     const params = new URLSearchParams();
     if (opts.full) params.set("full", "true");
     if (opts.days) params.set("days", String(opts.days));
-    return request<{ synced: number; pages: number }>(`/activities/sync?${params}`, {
+    return request<{ synced: number; matched: number; pages: number }>(`/activities/sync?${params}`, {
       method: "POST",
     });
   },
