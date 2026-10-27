@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Plus } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -20,15 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-const SESSION_TYPES = ["training", "race", "time trial", "gym"] as const;
+type SessionDialogState = { mode: "add"; date: Date } | { mode: "edit"; session: Session };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -87,11 +79,10 @@ export default function Calendar() {
   const [syncDays, setSyncDays] = useState(30);
   const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
 
-  const [addDate, setAddDate] = useState<Date | null>(null);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDistance, setNewDistance] = useState("");
-  const [newType, setNewType] = useState<string>("training");
-  const [adding, setAdding] = useState(false);
+  const [dialog, setDialog] = useState<SessionDialogState | null>(null);
+  const [formTitle, setFormTitle] = useState("");
+  const [formDistance, setFormDistance] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
@@ -119,30 +110,46 @@ export default function Calendar() {
     }
   };
 
-  const closeAddDialog = () => {
-    setAddDate(null);
-    setNewTitle("");
-    setNewDistance("");
-    setNewType("training");
+  const openAddDialog = (date: Date) => {
+    setDialog({ mode: "add", date });
+    setFormTitle("");
+    setFormDistance("");
   };
 
-  const addSession = async (e: React.FormEvent) => {
+  const openEditDialog = (session: Session) => {
+    setDialog({ mode: "edit", session });
+    setFormTitle(session.title);
+    setFormDistance(session.targetDistance != null ? String(session.targetDistance / 1000) : "");
+  };
+
+  const closeDialog = () => {
+    setDialog(null);
+    setFormTitle("");
+    setFormDistance("");
+  };
+
+  const submitSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addDate || !newTitle.trim()) return;
-    setAdding(true);
+    if (!dialog || !formTitle.trim()) return;
+    setSaving(true);
     try {
-      await api.createSession({
-        date: addDate.toISOString(),
-        title: newTitle,
-        type: newType,
-        targetDistance: newDistance ? Number(newDistance) * 1000 : undefined,
-      });
-      closeAddDialog();
+      const targetDistance = formDistance ? Number(formDistance) * 1000 : undefined;
+      if (dialog.mode === "add") {
+        await api.createSession({
+          date: dialog.date.toISOString(),
+          title: formTitle,
+          type: "session",
+          targetDistance,
+        });
+      } else {
+        await api.updateSession(dialog.session.id, { title: formTitle, targetDistance });
+      }
+      closeDialog();
       await load();
     } catch (e) {
       setError(String(e));
     } finally {
-      setAdding(false);
+      setSaving(false);
     }
   };
 
@@ -268,21 +275,32 @@ export default function Calendar() {
                       >
                         <div className="flex min-h-[104px] flex-col space-y-2">
                           {daySessions.map((s) => (
-                            <div key={s.id} className="rounded-md bg-accent/60 p-3">
-                              <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <div key={s.id} className="group/card relative rounded-md bg-primary/10 p-3">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="absolute top-1 right-1 opacity-0 transition-opacity group-hover/card:opacity-100"
+                                onClick={() => openEditDialog(s)}
+                              >
+                                <Pencil />
+                              </Button>
+                              <div className="flex items-center gap-1.5 pr-6 text-base font-bold">
                                 {s.completed && (
                                   <CheckCircle2 className="size-4 shrink-0 text-primary" />
                                 )}
-                                <span>{s.title}</span>
+                                <span className="truncate">{s.title}</span>
                               </div>
-                              <div className="mt-1 flex items-center gap-1.5">
-                                <Badge variant="secondary">{s.type}</Badge>
-                              </div>
+                              {!s.activity && (
+                                <div className="mt-1 text-sm text-muted-foreground">
+                                  Distance:{" "}
+                                  {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
+                                </div>
+                              )}
                               {s.activity && <ActivityStats activity={s.activity} />}
                             </div>
                           ))}
                           {dayUnmatched.map((a) => (
-                            <div key={a.id} className="rounded-md bg-muted/40 p-3">
+                            <div key={a.id} className="rounded-md bg-muted/50 p-3">
                               <ActivityStats activity={a} />
                             </div>
                           ))}
@@ -290,7 +308,7 @@ export default function Calendar() {
                             variant="ghost"
                             size="sm"
                             className="w-full flex-1 border border-dashed border-border text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={() => setAddDate(day)}
+                            onClick={() => openAddDialog(day)}
                           >
                             <Plus />
                           </Button>
@@ -315,21 +333,24 @@ export default function Calendar() {
         </Table>
       </div>
 
-      <Dialog open={addDate !== null} onOpenChange={(open) => !open && closeAddDialog()}>
+      <Dialog open={dialog !== null} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Add session
-              {addDate && ` — ${addDate.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}`}
+              {dialog &&
+                (dialog.mode === "add" ? dialog.date : new Date(dialog.session.date)).toLocaleDateString(
+                  undefined,
+                  { weekday: "long", month: "short", day: "numeric" },
+                )}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={addSession} className="space-y-4">
+          <form onSubmit={submitSession} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="session-title">Title</Label>
               <Input
                 id="session-title"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
                 placeholder="Easy 5k"
                 autoFocus
               />
@@ -341,29 +362,14 @@ export default function Calendar() {
                 type="number"
                 step="0.1"
                 min={0}
-                value={newDistance}
-                onChange={(e) => setNewDistance(e.target.value)}
+                value={formDistance}
+                onChange={(e) => setFormDistance(e.target.value)}
                 placeholder="5"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Type</Label>
-              <Select value={newType} onValueChange={setNewType}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SESSION_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t[0].toUpperCase() + t.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <DialogFooter>
-              <Button type="submit" disabled={adding || !newTitle.trim()}>
-                {adding ? "Adding..." : "Add session"}
+              <Button type="submit" disabled={saving || !formTitle.trim()}>
+                {saving ? "Saving..." : dialog?.mode === "edit" ? "Save changes" : "Add session"}
               </Button>
             </DialogFooter>
           </form>

@@ -37,6 +37,8 @@ export async function sessionRoutes(app: FastifyInstance) {
       activityId?: string;
       title?: string;
       description?: string;
+      targetDistance?: number;
+      targetDuration?: number;
     };
     return prisma.session.update({ where: { id }, data: body });
   });
