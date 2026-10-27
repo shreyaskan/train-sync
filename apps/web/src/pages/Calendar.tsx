@@ -112,13 +112,13 @@ export default function Calendar() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20"></TableHead>
+              <TableHead className="w-16"></TableHead>
               {DAY_LABELS.map((label) => (
-                <TableHead key={label} className="min-w-[150px]">
+                <TableHead key={label} className="w-[13%] min-w-0">
                   {label}
                 </TableHead>
               ))}
-              <TableHead className="min-w-[160px]">Total</TableHead>
+              <TableHead className="w-[11%] min-w-0">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
