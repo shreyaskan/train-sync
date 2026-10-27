@@ -44,13 +44,13 @@ function formatTime(iso: string) {
 
 function ActivityStats({ activity }: { activity: Activity }) {
   return (
-    <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground">
-      <div className="truncate">{activity.name ?? "Untitled"}</div>
+    <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
+      <div>{formatTime(activity.startTime)}</div>
+      <div className="truncate text-foreground">{activity.name ?? "Untitled"}</div>
       <div>
         {formatDistance(activity.distanceM ?? 0)} · {formatDuration(activity.durationSec)}
-        {activity.avgHr != null && <> · {activity.avgHr} bpm avg</>}
       </div>
-      <div>Started {formatTime(activity.startTime)}</div>
+      {activity.avgHr != null && <div>{activity.avgHr} bpm avg</div>}
     </div>
   );
 }
@@ -165,21 +165,19 @@ export default function Calendar() {
                     );
                     return (
                       <TableCell key={day.toISOString()} className="align-top whitespace-normal">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           {daySessions.map((s) => (
-                            <div key={s.id} className="rounded-md bg-accent/60 p-1.5">
-                              <div className="flex items-center gap-1 text-xs font-medium">
+                            <div key={s.id} className="rounded-md bg-accent/60 p-3">
+                              <div className="flex items-center gap-1.5 text-sm font-medium">
                                 {s.completed && (
-                                  <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+                                  <CheckCircle2 className="size-4 shrink-0 text-primary" />
                                 )}
                                 <span>{s.title}</span>
                               </div>
-                              <div className="mt-1 flex items-center gap-1">
-                                <Badge variant="secondary" className="text-[10px]">
-                                  {s.type}
-                                </Badge>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <Badge variant="secondary">{s.type}</Badge>
                                 {s.plan && (
-                                  <span className="truncate text-[10px] text-muted-foreground">
+                                  <span className="truncate text-sm text-muted-foreground">
                                     {s.plan.name}
                                   </span>
                                 )}
@@ -188,12 +186,7 @@ export default function Calendar() {
                             </div>
                           ))}
                           {dayUnmatched.map((a) => (
-                            <div key={a.id} className="rounded-md bg-muted/40 p-1.5">
-                              <div className="flex items-center gap-1">
-                                <Badge variant="outline" className="text-[10px]">
-                                  {a.type}
-                                </Badge>
-                              </div>
+                            <div key={a.id} className="rounded-md bg-muted/40 p-3">
                               <ActivityStats activity={a} />
                             </div>
                           ))}
