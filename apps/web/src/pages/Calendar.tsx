@@ -38,19 +38,23 @@ function formatDuration(seconds: number) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+function formatKm(meters: number) {
+  return `${(meters / 1000).toFixed(1)}km`;
+}
+
+function formatClock(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function ActivityStats({ activity }: { activity: Activity }) {
   return (
     <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
-      <div>{formatTime(activity.startTime)}</div>
       <div className="truncate text-foreground">{activity.name ?? "Untitled"}</div>
-      <div>
-        {formatDistance(activity.distanceM ?? 0)} · {formatDuration(activity.durationSec)}
-      </div>
-      {activity.avgHr != null && <div>{activity.avgHr} bpm avg</div>}
+      <div>Distance: {formatKm(activity.distanceM ?? 0)}</div>
+      <div>Time: {formatClock(activity.durationSec)}</div>
+      {activity.avgHr != null && <div>Avg HR: {activity.avgHr}bpm</div>}
     </div>
   );
 }
