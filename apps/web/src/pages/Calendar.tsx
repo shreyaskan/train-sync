@@ -19,8 +19,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SessionDialogState = { mode: "add"; date: Date } | { mode: "edit"; session: Session };
+
+const SESSION_TYPES = ["training", "race", "time trial", "gym"] as const;
+const DEFAULT_SESSION_TYPE: (typeof SESSION_TYPES)[number] = "training";
+
+// Each session type gets its own card background so the type is visible at a
+// glance on the calendar without showing a text label.
+const SESSION_TYPE_BG: Record<string, string> = {
+  training: "bg-primary/10",
+  race: "bg-rose-500/15",
+  "time trial": "bg-amber-500/15",
+  gym: "bg-emerald-500/15",
+};
+
+function sessionBg(type: string) {
+  return SESSION_TYPE_BG[type] ?? SESSION_TYPE_BG[DEFAULT_SESSION_TYPE];
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -82,6 +105,7 @@ export default function Calendar() {
   const [dialog, setDialog] = useState<SessionDialogState | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
+  const [formType, setFormType] = useState<string>(DEFAULT_SESSION_TYPE);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -116,6 +140,7 @@ export default function Calendar() {
     setDialog({ mode: "add", date });
     setFormTitle("");
     setFormDistance("");
+    setFormType(DEFAULT_SESSION_TYPE);
     setConfirmingDelete(false);
   };
 
@@ -123,6 +148,11 @@ export default function Calendar() {
     setDialog({ mode: "edit", session });
     setFormTitle(session.title);
     setFormDistance(session.targetDistance != null ? String(session.targetDistance / 1000) : "");
+    setFormType(
+      (SESSION_TYPES as readonly string[]).includes(session.type)
+        ? session.type
+        : DEFAULT_SESSION_TYPE,
+    );
     setConfirmingDelete(false);
   };
 
@@ -130,6 +160,7 @@ export default function Calendar() {
     setDialog(null);
     setFormTitle("");
     setFormDistance("");
+    setFormType(DEFAULT_SESSION_TYPE);
     setConfirmingDelete(false);
   };
 
@@ -143,11 +174,15 @@ export default function Calendar() {
         await api.createSession({
           date: dialog.date.toISOString(),
           title: formTitle,
-          type: "session",
+          type: formType,
           targetDistance,
         });
       } else {
-        await api.updateSession(dialog.session.id, { title: formTitle, targetDistance });
+        await api.updateSession(dialog.session.id, {
+          title: formTitle,
+          type: formType,
+          targetDistance,
+        });
       }
       closeDialog();
       await load();
@@ -298,7 +333,10 @@ export default function Calendar() {
                       >
                         <div className="flex min-h-[104px] flex-col space-y-2">
                           {daySessions.map((s) => (
-                            <div key={s.id} className="group/card relative rounded-md bg-primary/10 p-3">
+                            <div
+                              key={s.id}
+                              className={`group/card relative rounded-md ${sessionBg(s.type)} p-3`}
+                            >
                               <Button
                                 variant="ghost"
                                 size="icon-sm"
@@ -389,6 +427,21 @@ export default function Calendar() {
                 onChange={(e) => setFormDistance(e.target.value)}
                 placeholder="5"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={formType} onValueChange={setFormType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SESSION_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t[0].toUpperCase() + t.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter className="sm:justify-between">
               {dialog?.mode === "edit" ? (

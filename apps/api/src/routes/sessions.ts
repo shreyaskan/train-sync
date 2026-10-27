@@ -36,6 +36,7 @@ export async function sessionRoutes(app: FastifyInstance) {
       completed?: boolean;
       activityId?: string;
       title?: string;
+      type?: string;
       description?: string;
       targetDistance?: number;
       targetDuration?: number;
