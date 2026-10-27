@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { cn } from "cn";
 import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -263,6 +264,8 @@ export default function Calendar() {
   const linkedActivityIds = new Set(sessions.map((s) => s.activityId).filter(Boolean));
   const unmatchedActivities = activities.filter((a) => !linkedActivityIds.has(a.id));
 
+  const today = new Date();
+
   const weeks = Array.from({ length: NUM_WEEKS }, (_, i) => {
     const weekStart = new Date(anchor.getTime() + i * 7 * DAY_MS);
     const days = Array.from({ length: 7 }, (_, d) => new Date(weekStart.getTime() + d * DAY_MS));
@@ -374,7 +377,10 @@ export default function Calendar() {
                     return (
                       <TableCell
                         key={day.toISOString()}
-                        className="group align-top whitespace-normal"
+                        className={cn(
+                          "group align-top whitespace-normal",
+                          sameDay(day, today) && "rounded-md ring-2 ring-inset ring-sky-400",
+                        )}
                       >
                         <div className="flex min-h-[104px] flex-col space-y-2">
                           {daySessions.map((s) => (
