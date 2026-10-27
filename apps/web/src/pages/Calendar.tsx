@@ -109,7 +109,6 @@ export default function Calendar() {
   const [formType, setFormType] = useState<string>(DEFAULT_SESSION_TYPE);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const load = () =>
     Promise.all([api.getSessions(), api.getActivities()])
@@ -142,7 +141,6 @@ export default function Calendar() {
     setFormTitle("");
     setFormDistance("");
     setFormType(DEFAULT_SESSION_TYPE);
-    setConfirmingDelete(false);
   };
 
   const openEditDialog = (session: Session) => {
@@ -154,7 +152,6 @@ export default function Calendar() {
         ? session.type
         : DEFAULT_SESSION_TYPE,
     );
-    setConfirmingDelete(false);
   };
 
   const closeDialog = () => {
@@ -162,7 +159,6 @@ export default function Calendar() {
     setFormTitle("");
     setFormDistance("");
     setFormType(DEFAULT_SESSION_TYPE);
-    setConfirmingDelete(false);
   };
 
   const submitSession = async (e: React.FormEvent) => {
@@ -196,10 +192,6 @@ export default function Calendar() {
 
   const deleteSession = async () => {
     if (!dialog || dialog.mode !== "edit") return;
-    if (!confirmingDelete) {
-      setConfirmingDelete(true);
-      return;
-    }
     setDeleting(true);
     try {
       await api.deleteSession(dialog.session.id);
@@ -448,11 +440,12 @@ export default function Calendar() {
               {dialog?.mode === "edit" ? (
                 <Button
                   type="button"
-                  variant={confirmingDelete ? "destructive" : "ghost"}
+                  variant="ghost"
                   size="icon"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   disabled={deleting}
                   onClick={deleteSession}
-                  title={confirmingDelete ? "Click again to confirm" : "Delete session"}
+                  title="Delete session"
                 >
                   <Trash2 />
                 </Button>
