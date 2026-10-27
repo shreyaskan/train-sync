@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
-import { api, type Session } from "../api.js";
+import { api, type Activity, type Session } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,16 +38,44 @@ function formatDuration(seconds: number) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function ActivityStats({ activity }: { activity: Activity }) {
+  return (
+    <div className="mt-1 space-y-0.5 text-[10px] text-muted-foreground">
+      <div className="truncate">{activity.name ?? "Untitled"}</div>
+      <div>
+        {formatDistance(activity.distanceM ?? 0)} · {formatDuration(activity.durationSec)}
+        {activity.avgHr != null && <> · {activity.avgHr} bpm avg</>}
+      </div>
+      <div>Started {formatTime(activity.startTime)}</div>
+    </div>
+  );
+}
+
 export default function Calendar() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [anchor, setAnchor] = useState(() => mondayOf(new Date()));
 
   useEffect(() => {
-    api.getSessions().then(setSessions).catch((e) => setError(String(e)));
+    Promise.all([api.getSessions(), api.getActivities()])
+      .then(([sessions, activities]) => {
+        setSessions(sessions);
+        setActivities(activities);
+      })
+      .catch((e) => setError(String(e)));
   }, []);
 
   if (error) return <p className="text-destructive">{error}</p>;
+
+  // Activities already linked to a session are shown inside that session's
+  // card instead of as a separate entry.
+  const linkedActivityIds = new Set(sessions.map((s) => s.activityId).filter(Boolean));
+  const unmatchedActivities = activities.filter((a) => !linkedActivityIds.has(a.id));
 
   const weeks = Array.from({ length: NUM_WEEKS }, (_, i) => {
     const weekStart = new Date(anchor.getTime() + i * 7 * DAY_MS);
@@ -86,7 +114,7 @@ export default function Calendar() {
             <TableRow>
               <TableHead className="w-20"></TableHead>
               {DAY_LABELS.map((label) => (
-                <TableHead key={label} className="min-w-[130px]">
+                <TableHead key={label} className="min-w-[150px]">
                   {label}
                 </TableHead>
               ))}
@@ -97,6 +125,9 @@ export default function Calendar() {
             {weeks.map(({ weekStart, days }) => {
               const weekSessions = sessions.filter((s) =>
                 days.some((d) => sameDay(d, new Date(s.date))),
+              );
+              const weekUnmatched = unmatchedActivities.filter((a) =>
+                days.some((d) => sameDay(d, new Date(a.startTime))),
               );
 
               // Planned fields are stored in the same units as the matching
@@ -109,10 +140,13 @@ export default function Calendar() {
                 }),
                 { distance: 0, duration: 0 },
               );
-              const actual = weekSessions.reduce(
-                (acc, s) => ({
-                  distance: acc.distance + (s.activity?.distanceM ?? 0),
-                  duration: acc.duration + (s.activity?.durationSec ?? 0),
+              const actual = [
+                ...weekSessions.map((s) => s.activity).filter((a): a is Activity => !!a),
+                ...weekUnmatched,
+              ].reduce(
+                (acc, a) => ({
+                  distance: acc.distance + (a.distanceM ?? 0),
+                  duration: acc.duration + a.durationSec,
                 }),
                 { distance: 0, duration: 0 },
               );
@@ -125,6 +159,9 @@ export default function Calendar() {
                   {days.map((day) => {
                     const daySessions = weekSessions.filter((s) =>
                       sameDay(day, new Date(s.date)),
+                    );
+                    const dayUnmatched = weekUnmatched.filter((a) =>
+                      sameDay(day, new Date(a.startTime)),
                     );
                     return (
                       <TableCell key={day.toISOString()} className="align-top whitespace-normal">
@@ -147,6 +184,17 @@ export default function Calendar() {
                                   </span>
                                 )}
                               </div>
+                              {s.activity && <ActivityStats activity={s.activity} />}
+                            </div>
+                          ))}
+                          {dayUnmatched.map((a) => (
+                            <div key={a.id} className="rounded-md bg-muted/40 p-1.5">
+                              <div className="flex items-center gap-1">
+                                <Badge variant="outline" className="text-[10px]">
+                                  {a.type}
+                                </Badge>
+                              </div>
+                              <ActivityStats activity={a} />
                             </div>
                           ))}
                         </div>

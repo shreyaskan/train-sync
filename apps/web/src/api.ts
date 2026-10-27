@@ -17,6 +17,9 @@ export interface Activity {
   startTime: string;
   durationSec: number;
   distanceM: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  calories: number | null;
 }
 
 export interface Plan {
