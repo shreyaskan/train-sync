@@ -75,13 +75,16 @@ function sessionBg(type: string) {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const NUM_WEEKS = 6;
 
 function mondayOf(date: Date): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dayIndex = (d.getDay() + 6) % 7; // Mon=0 .. Sun=6
   d.setDate(d.getDate() - dayIndex);
   return d;
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
 function sameDay(a: Date, b: Date) {
@@ -130,7 +133,7 @@ export default function Calendar() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [anchor, setAnchor] = useState(() => mondayOf(new Date()));
+  const [monthAnchor, setMonthAnchor] = useState(() => startOfMonth(new Date()));
   const [syncing, setSyncing] = useState(false);
   const [syncDays, setSyncDays] = useState(30);
   const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
@@ -266,31 +269,46 @@ export default function Calendar() {
 
   const today = new Date();
 
-  const weeks = Array.from({ length: NUM_WEEKS }, (_, i) => {
-    const weekStart = new Date(anchor.getTime() + i * 7 * DAY_MS);
+  // The grid covers every Mon-Sun week that touches the anchor month, so the
+  // first row may start before the 1st and the last row may run past the
+  // last day of the month.
+  const lastOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
+  const weeks = [];
+  for (let weekStart = mondayOf(monthAnchor); weekStart <= lastOfMonth; ) {
     const days = Array.from({ length: 7 }, (_, d) => new Date(weekStart.getTime() + d * DAY_MS));
-    return { weekStart, days };
-  });
+    weeks.push({ weekStart, days });
+    weekStart = new Date(weekStart.getTime() + 7 * DAY_MS);
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Calendar</h1>
+        <h1 className="text-2xl font-semibold">
+          {monthAnchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+        </h1>
         <div className="flex items-center gap-1.5">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAnchor(new Date(anchor.getTime() - 7 * DAY_MS))}
+            onClick={() =>
+              setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() - 1, 1))
+            }
           >
             <ChevronLeft /> Prev
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setAnchor(mondayOf(new Date()))}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setMonthAnchor(startOfMonth(new Date()))}
+          >
             Today
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAnchor(new Date(anchor.getTime() + 7 * DAY_MS))}
+            onClick={() =>
+              setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 1))
+            }
           >
             Next <ChevronRight />
           </Button>
