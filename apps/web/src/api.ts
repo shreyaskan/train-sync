@@ -41,7 +41,10 @@ export interface Session {
 
 export const api = {
   getActivities: () => request<Activity[]>("/activities"),
-  syncActivities: () => request<{ synced: number }>("/activities/sync", { method: "POST" }),
+  syncActivities: (full = false) =>
+    request<{ synced: number; pages: number }>(`/activities/sync?full=${full}`, {
+      method: "POST",
+    }),
 
   getPlans: () => request<Plan[]>("/plans"),
   createPlan: (data: { name: string; description?: string }) =>

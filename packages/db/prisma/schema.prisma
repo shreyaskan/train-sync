@@ -8,6 +8,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Singleton row (id "default") holding the Garmin OAuth tokens so sync
+// doesn't have to log in with credentials on every run.
+model GarminAuth {
+  id        String   @id @default("default")
+  oauth1    Json
+  oauth2    Json
+  updatedAt DateTime @updatedAt
+}
+
 model Activity {
   id          String   @id @default(cuid())
   garminId    String   @unique

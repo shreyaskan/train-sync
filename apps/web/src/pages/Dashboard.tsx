@@ -12,11 +12,11 @@ export default function Dashboard() {
     load();
   }, []);
 
-  const sync = async () => {
+  const sync = async (full: boolean) => {
     setSyncing(true);
     setError(null);
     try {
-      await api.syncActivities();
+      await api.syncActivities(full);
       await load();
     } catch (e) {
       setError(String(e));
@@ -28,8 +28,11 @@ export default function Dashboard() {
   return (
     <div>
       <h1>Activities</h1>
-      <button onClick={sync} disabled={syncing}>
+      <button onClick={() => sync(false)} disabled={syncing}>
         {syncing ? "Syncing..." : "Sync from Garmin"}
+      </button>{" "}
+      <button onClick={() => sync(true)} disabled={syncing}>
+        {syncing ? "Syncing..." : "Full history sync"}
       </button>
       {error && <p style={{ color: "red" }}>{error}</p>}
       <ul>

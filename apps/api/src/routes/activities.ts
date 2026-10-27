@@ -8,8 +8,9 @@ export async function activityRoutes(app: FastifyInstance) {
   });
 
   app.post("/activities/sync", async (req, reply) => {
+    const { full } = (req.query as { full?: string }) ?? {};
     try {
-      const result = await syncActivities();
+      const result = await syncActivities({ full: full === "true" });
       return result;
     } catch (err) {
       req.log.error(err);
