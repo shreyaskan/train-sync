@@ -10,7 +10,7 @@ export async function planRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const plan = await prisma.plan.findUnique({
       where: { id },
-      include: { sessions: true },
+      include: { sessions: { include: { activity: true }, orderBy: { date: "asc" } } },
     });
     if (!plan) return reply.code(404).send({ error: "Plan not found" });
     return plan;

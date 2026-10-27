@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type Plan } from "../api.js";
 
 export default function Plans() {
@@ -33,7 +34,7 @@ export default function Plans() {
       <ul>
         {plans.map((p) => (
           <li key={p.id}>
-            {p.name} — {p.sessions.length} session(s)
+            <Link to={`/plans/${p.id}`}>{p.name}</Link> — {p.sessions.length} session(s)
           </li>
         ))}
       </ul>

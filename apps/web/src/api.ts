@@ -23,6 +23,8 @@ export interface Plan {
   id: string;
   name: string;
   description: string | null;
+  startDate: string | null;
+  endDate: string | null;
   sessions: Session[];
 }
 
@@ -37,6 +39,8 @@ export interface Session {
   targetDistance: number | null;
   completed: boolean;
   activityId: string | null;
+  activity?: Activity | null;
+  plan?: { id: string; name: string } | null;
 }
 
 export const api = {
@@ -51,6 +55,7 @@ export const api = {
   },
 
   getPlans: () => request<Plan[]>("/plans"),
+  getPlan: (id: string) => request<Plan>(`/plans/${id}`),
   createPlan: (data: { name: string; description?: string }) =>
     request<Plan>("/plans", { method: "POST", body: JSON.stringify(data) }),
 
