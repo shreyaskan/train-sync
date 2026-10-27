@@ -1,0 +1,14 @@
+{
+  "name": "train-sync",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @train-sync/api dev",
+    "dev:web": "pnpm --filter @train-sync/web dev",
+    "db:generate": "pnpm --filter @train-sync/db generate",
+    "db:migrate": "pnpm --filter @train-sync/db migrate"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
