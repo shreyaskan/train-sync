@@ -33,13 +33,16 @@ const SESSION_TYPES = ["training", "race", "time trial", "gym"] as const;
 const DEFAULT_SESSION_TYPE: (typeof SESSION_TYPES)[number] = "training";
 
 // Each session type gets its own card background so the type is visible at a
-// glance on the calendar without showing a text label.
+// glance on the calendar without showing a text label. Race uses the same
+// hue as a synced activity's card (green) but brighter, so a completed race
+// still reads as distinct from an ordinary activity.
 const SESSION_TYPE_BG: Record<string, string> = {
   training: "bg-primary/10",
-  race: "bg-rose-500/15",
+  race: "bg-green-500/35",
   "time trial": "bg-amber-500/15",
-  gym: "bg-emerald-500/15",
+  gym: "bg-orange-400/20",
 };
+const ACTIVITY_BG = "bg-green-400/15";
 
 function sessionBg(type: string) {
   return SESSION_TYPE_BG[type] ?? SESSION_TYPE_BG[DEFAULT_SESSION_TYPE];
@@ -361,7 +364,7 @@ export default function Calendar() {
                             </div>
                           ))}
                           {dayUnmatched.map((a) => (
-                            <div key={a.id} className="rounded-md bg-muted/50 p-3">
+                            <div key={a.id} className={`rounded-md ${ACTIVITY_BG} p-3`}>
                               <ActivityStats activity={a} />
                             </div>
                           ))}
