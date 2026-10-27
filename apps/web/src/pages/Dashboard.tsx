@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type Activity } from "../api.js";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -29,33 +32,43 @@ export default function Dashboard() {
   };
 
   return (
-    <div>
-      <h1>Activities</h1>
-      <input
-        type="number"
-        min={1}
-        value={days}
-        onChange={(e) => setDays(Number(e.target.value))}
-        style={{ width: 60 }}
-      />{" "}
-      days{" "}
-      <button onClick={() => sync({ days })} disabled={syncing}>
-        {syncing ? "Syncing..." : "Sync from Garmin"}
-      </button>{" "}
-      <button onClick={() => sync({ full: true })} disabled={syncing}>
-        {syncing ? "Syncing..." : "Full history sync"}
-      </button>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Activities</h1>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="w-16"
+          />
+          <span className="text-sm text-muted-foreground">days</span>
+          <Button size="sm" onClick={() => sync({ days })} disabled={syncing}>
+            {syncing ? "Syncing..." : "Sync from Garmin"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => sync({ full: true })} disabled={syncing}>
+            Full history sync
+          </Button>
+        </div>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {lastResult && (
-        <p>
+        <p className="text-sm text-muted-foreground">
           Synced {lastResult.synced} activities, matched {lastResult.matched} to planned sessions.
         </p>
       )}
-      <ul>
+
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {activities.map((a) => (
-          <li key={a.id}>
-            {new Date(a.startTime).toLocaleDateString()} — {a.type} — {a.name ?? "Untitled"} —{" "}
-            {Math.round(a.durationSec / 60)} min
+          <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              {new Date(a.startTime).toLocaleDateString()}
+            </span>
+            <Badge variant="secondary">{a.type}</Badge>
+            <span className="flex-1 truncate">{a.name ?? "Untitled"}</span>
+            <span className="text-muted-foreground">{Math.round(a.durationSec / 60)} min</span>
           </li>
         ))}
       </ul>
