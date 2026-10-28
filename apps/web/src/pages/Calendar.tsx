@@ -119,10 +119,6 @@ function sameDay(a: Date, b: Date) {
   return a.toDateString() === b.toDateString();
 }
 
-function formatDistance(meters: number) {
-  return `${(meters / 1000).toFixed(1)} km`;
-}
-
 function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
@@ -589,7 +585,7 @@ export default function Calendar() {
                   })}
                   <TableCell className="align-top whitespace-normal">
                     <div className="mb-0.5 text-xs text-muted-foreground">
-                      {isFutureWeek ? "Planned" : "Completed"}
+                      {isFutureWeek ? "Planned" : "Distance"}
                     </div>
                     {isFutureWeek ? (
                       hasNoSessions ? (
@@ -612,12 +608,12 @@ export default function Calendar() {
                             className="text-xl leading-tight font-bold text-foreground hover:text-primary"
                             title="Set planned distance for this week"
                           >
-                            {formatDistance(plannedDistance)}
+                            {(plannedDistance / 1000).toFixed(1)}
                           </button>
                         )
                       ) : (
                         <div className="text-xl leading-tight font-bold text-foreground">
-                          {formatDistance(plannedDistance)}
+                          {(plannedDistance / 1000).toFixed(1)}
                         </div>
                       )
                     ) : (
@@ -653,11 +649,11 @@ export default function Calendar() {
                               )
                             ) : (
                               (plannedDistance / 1000).toFixed(1)
-                            )}{" "}
-                            km
+                            )}
                           </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="mt-2 text-xs text-muted-foreground">Time</div>
+                        <div className="text-sm font-medium text-foreground">
                           {formatDuration(actual.duration)}
                         </div>
                       </>
