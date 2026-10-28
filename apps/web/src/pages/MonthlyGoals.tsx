@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "cn";
 import { api, type Goal } from "../api.js";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,8 @@ export default function MonthlyGoals() {
   const [error, setError] = useState<string | null>(null);
   const [addingKey, setAddingKey] = useState<string | null>(null);
   const [newText, setNewText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const load = () => api.getGoals().then(setGoals).catch((e) => setError(String(e)));
 
@@ -54,6 +56,33 @@ export default function MonthlyGoals() {
   const toggleGoal = async (goal: Goal) => {
     try {
       await api.updateGoal(goal.id, { completed: !goal.completed });
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const startEdit = (goal: Goal) => {
+    setEditingId(goal.id);
+    setEditText(goal.text);
+  };
+
+  const saveEdit = async () => {
+    const id = editingId;
+    const text = editText.trim();
+    setEditingId(null);
+    if (!id || !text) return;
+    try {
+      await api.updateGoal(id, { text });
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const removeGoal = async (id: string) => {
+    try {
+      await api.deleteGoal(id);
       await load();
     } catch (e) {
       setError(String(e));
@@ -119,7 +148,7 @@ export default function MonthlyGoals() {
                     <h2 className="text-sm font-bold">{MONTH_NAMES[month - 1]}</h2>
                     <ul className="flex flex-col gap-2">
                       {monthGoals.map((g) => (
-                        <li key={g.id} className="flex items-start gap-2 text-sm">
+                        <li key={g.id} className="group/goal flex items-start gap-2 text-sm">
                           <button
                             type="button"
                             onClick={() => toggleGoal(g)}
@@ -154,9 +183,53 @@ export default function MonthlyGoals() {
                               </svg>
                             )}
                           </button>
-                          <span className={cn(g.completed && "text-muted-foreground line-through")}>
-                            {g.text}
-                          </span>
+
+                          {editingId === g.id ? (
+                            <form
+                              className="flex-1"
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                saveEdit();
+                              }}
+                            >
+                              <Input
+                                autoFocus
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                onBlur={saveEdit}
+                                className="h-6 px-1.5 text-sm"
+                              />
+                            </form>
+                          ) : (
+                            <>
+                              <span
+                                className={cn(
+                                  "flex-1",
+                                  g.completed && "text-muted-foreground line-through",
+                                )}
+                              >
+                                {g.text}
+                              </span>
+                              <div className="hidden shrink-0 items-center gap-1 group-hover/goal:flex">
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(g)}
+                                  aria-label="Edit goal"
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <Pencil className="size-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeGoal(g.id)}
+                                  aria-label="Delete goal"
+                                  className="text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>
