@@ -40,6 +40,7 @@ const ADD_CONFIG: Record<
   AddKind,
   {
     showTitle: boolean;
+    showDistance: boolean;
     showType: boolean;
     showDescription: boolean;
     typeOptions: SessionType[];
@@ -49,6 +50,7 @@ const ADD_CONFIG: Record<
 > = {
   session: {
     showTitle: true,
+    showDistance: true,
     showType: true,
     showDescription: false,
     typeOptions: ["training", "race", "time trial"],
@@ -57,6 +59,7 @@ const ADD_CONFIG: Record<
   },
   "easy-run": {
     showTitle: false,
+    showDistance: true,
     showType: false,
     showDescription: false,
     typeOptions: [],
@@ -65,6 +68,7 @@ const ADD_CONFIG: Record<
   },
   gym: {
     showTitle: true,
+    showDistance: false,
     showType: false,
     showDescription: true,
     typeOptions: [],
@@ -316,7 +320,13 @@ export default function Calendar() {
   const formConfig = !dialog
     ? null
     : dialog.mode === "edit"
-      ? { showTitle: true, showType: true, showDescription: false, typeOptions: [...ALL_TYPES] }
+      ? {
+          showTitle: true,
+          showDistance: dialog.session.type !== "gym",
+          showType: true,
+          showDescription: dialog.session.type === "gym",
+          typeOptions: [...ALL_TYPES],
+        }
       : dialog.mode === "add"
         ? ADD_CONFIG[dialog.kind]
         : null;
@@ -408,7 +418,7 @@ export default function Calendar() {
                   {label}
                 </TableHead>
               ))}
-              <TableHead className="w-[11%] min-w-0">Total</TableHead>
+              <TableHead className="w-[14%] min-w-0">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -440,6 +450,8 @@ export default function Calendar() {
                 }),
                 { distance: 0, duration: 0 },
               );
+              // A week that hasn't started yet has no "actual" to show.
+              const isFutureWeek = weekStart > today;
 
               return (
                 <TableRow key={weekStart.toISOString()} className="align-top">
@@ -492,7 +504,7 @@ export default function Calendar() {
                                 )}
                                 <span className="truncate">{s.title}</span>
                               </div>
-                              {!s.activity && s.type !== "rest" && (
+                              {!s.activity && s.type !== "rest" && s.type !== "gym" && (
                                 <div className="mt-1 text-sm text-muted-foreground">
                                   Distance:{" "}
                                   {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
@@ -546,15 +558,26 @@ export default function Calendar() {
                       </TableCell>
                     );
                   })}
-                  <TableCell className="align-top whitespace-normal text-xs">
-                    <div className="text-muted-foreground">
-                      Planned: {formatDistance(planned.distance)} /{" "}
-                      {formatDuration(planned.duration)}
-                    </div>
-                    <div className="font-medium">
-                      Actual: {formatDistance(actual.distance)} /{" "}
-                      {formatDuration(actual.duration)}
-                    </div>
+                  <TableCell className="align-top whitespace-normal">
+                    {isFutureWeek ? (
+                      <div className="text-sm text-muted-foreground">
+                        Planned {formatDistance(planned.distance)}
+                        <div className="text-xs">{formatDuration(planned.duration)}</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-2xl leading-tight font-bold text-foreground">
+                          {formatDistance(actual.distance)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDuration(actual.duration)}
+                        </div>
+                        <div className="mt-1.5 text-xs text-muted-foreground">
+                          Planned {formatDistance(planned.distance)} /{" "}
+                          {formatDuration(planned.duration)}
+                        </div>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               );
@@ -600,19 +623,21 @@ export default function Calendar() {
                   />
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label htmlFor="session-distance">Distance (km)</Label>
-                <Input
-                  id="session-distance"
-                  type="number"
-                  step="0.1"
-                  min={0}
-                  value={formDistance}
-                  onChange={(e) => setFormDistance(e.target.value)}
-                  placeholder="5"
-                  autoFocus={!formConfig?.showTitle}
-                />
-              </div>
+              {formConfig?.showDistance && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="session-distance">Distance (km)</Label>
+                  <Input
+                    id="session-distance"
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={formDistance}
+                    onChange={(e) => setFormDistance(e.target.value)}
+                    placeholder="5"
+                    autoFocus={!formConfig?.showTitle}
+                  />
+                </div>
+              )}
               {formConfig?.showType && (
                 <div className="space-y-1.5">
                   <Label>Type</Label>
