@@ -585,7 +585,7 @@ export default function Calendar() {
                   })}
                   <TableCell className="align-top whitespace-normal">
                     <div className="mb-0.5 text-xs text-muted-foreground">
-                      {isFutureWeek ? "Planned" : "Distance"}
+                      {isFutureWeek ? "Planned" : "Distance (km)"}
                     </div>
                     {isFutureWeek ? (
                       hasNoSessions ? (
