@@ -36,6 +36,27 @@ function formatKm(meters: number) {
   return `${(meters / 1000).toFixed(1)}km`;
 }
 
+// Catmull-Rom -> cubic Bezier, so the line/area curves smoothly through each
+// week's point instead of meeting at sharp angles.
+function smoothPath(points: [number, number][]) {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+
+  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
 export default function MileageChart() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -85,19 +106,18 @@ export default function MileageChart() {
   const x = (i: number) => MARGIN.left + (PLOT_W * i) / (WINDOW_WEEKS - 1);
   const y = (km: number) => MARGIN.top + PLOT_H * (1 - km / yMax);
 
-  const plannedPath = weeks
-    .map((w, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(w.plannedKm).toFixed(1)}`)
-    .join(" ");
+  const plannedPts: [number, number][] = weeks.map((w, i) => [x(i), y(w.plannedKm)]);
+  const plannedLinePath = smoothPath(plannedPts);
+  const plannedAreaPath = plannedLinePath
+    ? `${plannedLinePath} L${plannedPts[plannedPts.length - 1][0].toFixed(1)},${y(0).toFixed(1)} L${plannedPts[0][0].toFixed(1)},${y(0).toFixed(1)} Z`
+    : "";
 
-  const completedWeeks = weeks
-    .map((w, i) => ({ ...w, i }))
-    .filter((w) => !w.isFuture);
-  const completedLinePath = completedWeeks
-    .map((w, j) => `${j === 0 ? "M" : "L"}${x(w.i).toFixed(1)},${y(w.completedKm).toFixed(1)}`)
-    .join(" ");
+  const completedWeeks = weeks.map((w, i) => ({ ...w, i })).filter((w) => !w.isFuture);
+  const completedPts: [number, number][] = completedWeeks.map((w) => [x(w.i), y(w.completedKm)]);
+  const completedLinePath = smoothPath(completedPts);
   const completedAreaPath =
-    completedWeeks.length > 0
-      ? `${completedLinePath} L${x(completedWeeks[completedWeeks.length - 1].i).toFixed(1)},${y(0).toFixed(1)} L${x(completedWeeks[0].i).toFixed(1)},${y(0).toFixed(1)} Z`
+    completedPts.length > 0
+      ? `${completedLinePath} L${completedPts[completedPts.length - 1][0].toFixed(1)},${y(0).toFixed(1)} L${completedPts[0][0].toFixed(1)},${y(0).toFixed(1)} Z`
       : "";
 
   let todayWeekIndex = -1;
@@ -201,6 +221,7 @@ export default function MileageChart() {
             />
           )}
 
+          {plannedAreaPath && <path d={plannedAreaPath} fill={PLANNED_COLOR} opacity="0.04" />}
           {completedAreaPath && <path d={completedAreaPath} fill={COMPLETED_COLOR} opacity="0.1" />}
           {completedLinePath && (
             <path
@@ -213,7 +234,7 @@ export default function MileageChart() {
             />
           )}
           <path
-            d={plannedPath}
+            d={plannedLinePath}
             fill="none"
             stroke={PLANNED_COLOR}
             strokeWidth="2"
