@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { cn } from "cn";
-import { api, type Activity, type Session } from "../api.js";
+import { api, type Activity, type Session, type WeeklyPlan } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -171,6 +171,10 @@ export default function Calendar() {
   const [syncDays, setSyncDays] = useState(30);
   const [lastResult, setLastResult] = useState<{ synced: number; matched: number } | null>(null);
 
+  const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlan[]>([]);
+  const [editingPlanWeek, setEditingPlanWeek] = useState<string | null>(null);
+  const [planInput, setPlanInput] = useState("");
+
   const [dialog, setDialog] = useState<SessionDialogState | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
@@ -181,10 +185,11 @@ export default function Calendar() {
   const [completing, setCompleting] = useState(false);
 
   const load = () =>
-    Promise.all([api.getSessions(), api.getActivities()])
-      .then(([sessions, activities]) => {
+    Promise.all([api.getSessions(), api.getActivities(), api.getWeeklyPlans()])
+      .then(([sessions, activities, weeklyPlans]) => {
         setSessions(sessions);
         setActivities(activities);
+        setWeeklyPlans(weeklyPlans);
       })
       .catch((e) => setError(String(e)));
 
@@ -317,6 +322,25 @@ export default function Calendar() {
     }
   };
 
+  // Only used for weeks with no sessions — once a session exists, the
+  // planned total is derived from it instead of this manual override.
+  const startEditPlan = (weekStart: Date, currentDistanceM: number) => {
+    setEditingPlanWeek(weekStart.toISOString());
+    setPlanInput(currentDistanceM ? String(currentDistanceM / 1000) : "");
+  };
+
+  const savePlan = async (weekStart: Date) => {
+    setEditingPlanWeek(null);
+    const km = Number(planInput);
+    if (!planInput.trim() || Number.isNaN(km) || km < 0) return;
+    try {
+      await api.setWeeklyPlan(weekStart.toISOString(), km * 1000);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   const formConfig = !dialog
     ? null
     : dialog.mode === "edit"
@@ -430,16 +454,21 @@ export default function Calendar() {
                 days.some((d) => sameDay(d, new Date(a.startTime))),
               );
 
-              // Planned fields are stored in the same units as the matching
-              // Activity fields (meters / seconds) so planned and actual can
-              // be summed side by side.
-              const planned = weekSessions.reduce(
-                (acc, s) => ({
-                  distance: acc.distance + (s.targetDistance ?? 0),
-                  duration: acc.duration + (s.targetDuration ?? 0),
-                }),
-                { distance: 0, duration: 0 },
+              // Planned distance is normally the sum of that week's session
+              // targets. A week with no sessions has nothing to sum, so it
+              // falls back to a manual per-week override instead.
+              const hasNoSessions = weekSessions.length === 0;
+              const plannedFromSessions = weekSessions.reduce(
+                (acc, s) => acc + (s.targetDistance ?? 0),
+                0,
               );
+              const plannedOverride = weeklyPlans.find(
+                (p) => new Date(p.weekStart).getTime() === weekStart.getTime(),
+              )?.plannedDistance;
+              const plannedDistance = hasNoSessions
+                ? (plannedOverride ?? 0)
+                : plannedFromSessions;
+              const isEditingPlan = editingPlanWeek === weekStart.toISOString();
               const actual = [
                 ...weekSessions.map((s) => s.activity).filter((a): a is Activity => !!a),
                 ...weekUnmatched,
@@ -559,22 +588,77 @@ export default function Calendar() {
                     );
                   })}
                   <TableCell className="align-top whitespace-normal">
+                    <div className="mb-0.5 text-xs text-muted-foreground">
+                      {isFutureWeek ? "Planned" : "Completed"}
+                    </div>
                     {isFutureWeek ? (
-                      <div className="text-sm text-muted-foreground">
-                        Planned {formatDistance(planned.distance)}
-                        <div className="text-xs">{formatDuration(planned.duration)}</div>
-                      </div>
+                      hasNoSessions ? (
+                        isEditingPlan ? (
+                          <Input
+                            autoFocus
+                            type="number"
+                            step="0.1"
+                            min={0}
+                            value={planInput}
+                            onChange={(e) => setPlanInput(e.target.value)}
+                            onBlur={() => savePlan(weekStart)}
+                            onKeyDown={(e) => e.key === "Enter" && savePlan(weekStart)}
+                            className="h-8 w-20 text-xl font-bold"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startEditPlan(weekStart, plannedDistance)}
+                            className="text-xl leading-tight font-bold text-foreground hover:text-primary"
+                            title="Set planned distance for this week"
+                          >
+                            {formatDistance(plannedDistance)}
+                          </button>
+                        )
+                      ) : (
+                        <div className="text-xl leading-tight font-bold text-foreground">
+                          {formatDistance(plannedDistance)}
+                        </div>
+                      )
                     ) : (
                       <>
-                        <div className="text-2xl leading-tight font-bold text-foreground">
-                          {formatDistance(actual.distance)}
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-2xl leading-tight font-bold text-foreground">
+                            {(actual.distance / 1000).toFixed(1)}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            /{" "}
+                            {hasNoSessions ? (
+                              isEditingPlan ? (
+                                <Input
+                                  autoFocus
+                                  type="number"
+                                  step="0.1"
+                                  min={0}
+                                  value={planInput}
+                                  onChange={(e) => setPlanInput(e.target.value)}
+                                  onBlur={() => savePlan(weekStart)}
+                                  onKeyDown={(e) => e.key === "Enter" && savePlan(weekStart)}
+                                  className="inline-block h-6 w-14 px-1 text-sm"
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => startEditPlan(weekStart, plannedDistance)}
+                                  className="underline-offset-2 hover:text-foreground hover:underline"
+                                  title="Set planned distance for this week"
+                                >
+                                  {(plannedDistance / 1000).toFixed(1)}
+                                </button>
+                              )
+                            ) : (
+                              (plannedDistance / 1000).toFixed(1)
+                            )}{" "}
+                            km
+                          </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {formatDuration(actual.duration)}
-                        </div>
-                        <div className="mt-1.5 text-xs text-muted-foreground">
-                          Planned {formatDistance(planned.distance)} /{" "}
-                          {formatDuration(planned.duration)}
                         </div>
                       </>
                     )}

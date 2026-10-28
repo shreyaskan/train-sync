@@ -46,6 +46,15 @@ model MonthlyGoal {
   @@index([year, month])
 }
 
+// Manual planned-distance override for a week, used only when that week has
+// no sessions to sum targetDistance from.
+model WeeklyPlan {
+  id              String   @id @default(cuid())
+  weekStart       DateTime @unique
+  plannedDistance Float
+  createdAt       DateTime @default(now())
+}
+
 model Session {
   id             String    @id @default(cuid())
   date           DateTime

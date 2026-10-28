@@ -6,6 +6,7 @@ import cors from "@fastify/cors";
 import { activityRoutes } from "./routes/activities.js";
 import { goalRoutes } from "./routes/goals.js";
 import { sessionRoutes } from "./routes/sessions.js";
+import { weeklyPlanRoutes } from "./routes/weekly-plans.js";
 import { startScheduler } from "./sync/scheduler.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -19,6 +20,7 @@ await app.register(cors, { origin: true });
 await app.register(activityRoutes);
 await app.register(goalRoutes);
 await app.register(sessionRoutes);
+await app.register(weeklyPlanRoutes);
 
 app.get("/health", async () => ({ ok: true }));
 

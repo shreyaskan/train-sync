@@ -46,6 +46,12 @@ export interface Goal {
   order: number;
 }
 
+export interface WeeklyPlan {
+  id: string;
+  weekStart: string;
+  plannedDistance: number;
+}
+
 export const api = {
   getActivities: () => request<Activity[]>("/activities"),
   syncActivities: (opts: { full?: boolean; days?: number } = {}) => {
@@ -74,4 +80,11 @@ export const api = {
   updateGoal: (id: string, data: Partial<Pick<Goal, "text" | "completed">>) =>
     request<Goal>(`/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteGoal: (id: string) => request<{ ok: boolean }>(`/goals/${id}`, { method: "DELETE" }),
+
+  getWeeklyPlans: () => request<WeeklyPlan[]>("/weekly-plans"),
+  setWeeklyPlan: (weekStart: string, plannedDistance: number) =>
+    request<WeeklyPlan>("/weekly-plans", {
+      method: "PUT",
+      body: JSON.stringify({ weekStart, plannedDistance }),
+    }),
 };
