@@ -34,6 +34,18 @@ model Activity {
   session Session?
 }
 
+model MonthlyGoal {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int // 1-12
+  text      String
+  completed Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([year, month])
+}
+
 model Session {
   id             String    @id @default(cuid())
   date           DateTime

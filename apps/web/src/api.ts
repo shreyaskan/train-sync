@@ -37,6 +37,15 @@ export interface Session {
   activity?: Activity | null;
 }
 
+export interface Goal {
+  id: string;
+  year: number;
+  month: number;
+  text: string;
+  completed: boolean;
+  order: number;
+}
+
 export const api = {
   getActivities: () => request<Activity[]>("/activities"),
   syncActivities: (opts: { full?: boolean; days?: number } = {}) => {
@@ -58,4 +67,11 @@ export const api = {
     >,
   ) => request<Session>(`/sessions/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: "DELETE" }),
+
+  getGoals: () => request<Goal[]>("/goals"),
+  createGoal: (data: { year: number; month: number; text: string }) =>
+    request<Goal>("/goals", { method: "POST", body: JSON.stringify(data) }),
+  updateGoal: (id: string, data: Partial<Pick<Goal, "text" | "completed">>) =>
+    request<Goal>(`/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteGoal: (id: string) => request<{ ok: boolean }>(`/goals/${id}`, { method: "DELETE" }),
 };
