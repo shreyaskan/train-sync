@@ -243,6 +243,47 @@ export default function MileageChart() {
           />
 
           {weeks.map((w, i) => (
+            <g key={`planned-${i}`}>
+              <circle cx={x(i)} cy={y(w.plannedKm)} r="4" fill={PLANNED_COLOR} stroke="var(--card)" strokeWidth="2" />
+              <text
+                x={x(i)}
+                y={y(w.plannedKm) - 10}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="600"
+                fill="var(--foreground)"
+              >
+                {Math.round(w.plannedKm)}
+              </text>
+            </g>
+          ))}
+          {weeks.map(
+            (w, i) =>
+              !w.isFuture && (
+                <g key={`completed-${i}`}>
+                  <circle
+                    cx={x(i)}
+                    cy={y(w.completedKm)}
+                    r="4"
+                    fill={COMPLETED_COLOR}
+                    stroke="var(--card)"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={x(i)}
+                    y={y(w.completedKm) + 18}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="600"
+                    fill="var(--foreground)"
+                  >
+                    {Math.round(w.completedKm)}
+                  </text>
+                </g>
+              ),
+          )}
+
+          {weeks.map((w, i) => (
             <circle key={`hit-${i}`} cx={x(i)} cy={y(w.plannedKm)} r="10" fill="transparent">
               <title>
                 Week of {w.weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — Planned{" "}
