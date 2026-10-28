@@ -73,37 +73,49 @@ function utcDayRange(date: Date) {
   return { start, end };
 }
 
-// Links a newly-synced activity to a planned session on the same day, so
-// completing a workout on Garmin marks the plan done without manual
-// bookkeeping. A day can have several sessions (e.g. warm up / main set /
-// cool down planned separately), so this picks whichever unmatched
-// candidate's planned time is closest to the activity's actual start time
-// rather than just the first one found — sessions need a real time set (not
-// just a date) for that to disambiguate. Session "type" is a workout
-// category (training/race/...), not a sport, so it isn't used to filter.
-async function matchToSession(activityId: string, startTime: Date) {
-  const { start, end } = utcDayRange(startTime);
-  const candidates = await prisma.session.findMany({
-    where: {
-      completed: false,
-      activityId: null,
-      date: { gte: start, lt: end },
-    },
-  });
-  if (candidates.length === 0) return false;
+// Gym and rest sessions have no corresponding Garmin activity to sync — only
+// run-like sessions get auto-matched.
+const MATCHABLE_SESSION_TYPES = ["training", "race", "time trial"];
 
-  const closest = candidates.reduce((best, c) =>
-    Math.abs(c.date.getTime() - startTime.getTime()) <
-    Math.abs(best.date.getTime() - startTime.getTime())
-      ? c
-      : best,
-  );
+// Links a day's newly-synced activities to that day's planned sessions, so
+// completing workouts on Garmin marks the plan done without manual
+// bookkeeping. Sessions aren't given a specific time (just a date), so there's
+// no time-of-day to match on — instead this pairs them up in order: the
+// earliest-recorded activity of the day matches whichever matchable session
+// was added first that day, the next-earliest activity matches the
+// next-added session, and so on. This only runs once a day's activities are
+// all synced, since the pairing depends on every activity's relative order,
+// not just the one most recently fetched.
+async function matchDay(dayStart: Date) {
+  const { start, end } = utcDayRange(dayStart);
 
-  await prisma.session.update({
-    where: { id: closest.id },
-    data: { completed: true, activityId },
-  });
-  return true;
+  const [sessions, activities] = await Promise.all([
+    prisma.session.findMany({
+      where: {
+        completed: false,
+        activityId: null,
+        type: { in: MATCHABLE_SESSION_TYPES },
+        date: { gte: start, lt: end },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.activity.findMany({
+      where: {
+        startTime: { gte: start, lt: end },
+        session: null,
+      },
+      orderBy: { startTime: "asc" },
+    }),
+  ]);
+
+  const pairCount = Math.min(sessions.length, activities.length);
+  for (let i = 0; i < pairCount; i++) {
+    await prisma.session.update({
+      where: { id: sessions[i].id },
+      data: { completed: true, activityId: activities[i].id },
+    });
+  }
+  return pairCount;
 }
 
 interface SyncOptions {
@@ -127,8 +139,12 @@ export async function syncActivities({ full = false, days }: SyncOptions = {}) {
   const cutoff = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
   let synced = 0;
-  let matched = 0;
   let page = 0;
+  // Keyed by that day's utcDayRange().start.getTime(), so matching runs once
+  // per touched day after every activity in this sync is upserted — pairing
+  // depends on every activity's relative order within the day, not just
+  // whichever one was fetched most recently.
+  const touchedDays = new Set<number>();
 
   for (; page < MAX_PAGES; page++) {
     const activities = await gc.getActivities(page * PAGE_SIZE, PAGE_SIZE);
@@ -173,12 +189,15 @@ export async function syncActivities({ full = false, days }: SyncOptions = {}) {
         },
       });
       synced++;
-
-      const didMatch = await matchToSession(activityRecord.id, activityRecord.startTime);
-      if (didMatch) matched++;
+      touchedDays.add(utcDayRange(activityRecord.startTime).start.getTime());
     }
 
     if (stop || activities.length < PAGE_SIZE) break;
+  }
+
+  let matched = 0;
+  for (const dayKey of touchedDays) {
+    matched += await matchDay(new Date(dayKey));
   }
 
   return { synced, matched, pages: page + 1 };
