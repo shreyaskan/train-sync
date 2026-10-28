@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 const WINDOW_WEEKS = 16;
-// Position today's week 9 weeks into the window, so a few months of history
-// lead into it with room to look ahead for the rest of the block.
-const PAST_WEEKS = 9;
+// Default window starts 3 weeks before the current week.
+const PAST_WEEKS = 3;
 
 // Validated against the app's dark navy surface (see dataviz skill): both
 // pass lightness band / chroma floor / CVD separation / contrast.
