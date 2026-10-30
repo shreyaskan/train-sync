@@ -145,9 +145,9 @@ function formatClock(seconds: number) {
 // Running") shouldn't override or duplicate the planned session's name.
 function ActivityStats({ activity, showName = true }: { activity: Activity; showName?: boolean }) {
   return (
-    <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
+    <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
       {showName && (
-        <div className="break-words text-base font-bold text-foreground">
+        <div className="break-words text-sm font-bold text-foreground">
           {activity.name ?? "Untitled"}
         </div>
       )}
@@ -372,9 +372,9 @@ export default function Calendar() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-xl font-semibold">
           {monthAnchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         </h1>
         <div className="flex items-center gap-1.5">
@@ -429,16 +429,16 @@ export default function Calendar() {
       </div>
 
       <div className="rounded-lg border border-border">
-        <Table className="table-fixed">
+        <Table className="table-fixed text-sm">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[6%]"></TableHead>
+              <TableHead className="h-8 w-[4%]"></TableHead>
               {DAY_LABELS.map((label) => (
-                <TableHead key={label} className="w-[11.5%] min-w-0">
+                <TableHead key={label} className="h-8 w-[12.5%] min-w-0 text-xs">
                   {label}
                 </TableHead>
               ))}
-              <TableHead className="w-[13.5%] min-w-0">Total</TableHead>
+              <TableHead className="h-8 w-[8.5%] min-w-0 text-xs">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -480,7 +480,7 @@ export default function Calendar() {
 
               return (
                 <TableRow key={weekStart.toISOString()} className="align-top">
-                  <TableCell className="whitespace-nowrap align-top text-xs text-muted-foreground">
+                  <TableCell className="whitespace-nowrap align-top p-1.5 text-xs text-muted-foreground">
                     {weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </TableCell>
                   {days.map((day) => {
@@ -494,21 +494,21 @@ export default function Calendar() {
                       <TableCell
                         key={day.toISOString()}
                         className={cn(
-                          "group align-top whitespace-normal",
+                          "group align-top whitespace-normal p-1.5",
                           sameDay(day, today) && "rounded-md ring-2 ring-inset ring-sky-400",
                         )}
                       >
-                        <div className="flex min-h-[104px] flex-col space-y-2">
+                        <div className="flex min-h-[56px] flex-col space-y-1.5">
                           {daySessions.map((s) => (
                             <div
                               key={s.id}
-                              className={`group/card relative rounded-md ${sessionBg(s)} p-3`}
+                              className={`group/card relative rounded-md ${sessionBg(s)} p-2`}
                             >
-                              <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover/card:opacity-100">
+                              <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 transition-opacity group-hover/card:opacity-100">
                                 {s.type === "gym" && (
                                   <Button
                                     variant="ghost"
-                                    size="icon-sm"
+                                    size="icon-xs"
                                     title="Complete gym session"
                                     onClick={() => openCompleteGymDialog(s)}
                                   >
@@ -517,20 +517,20 @@ export default function Calendar() {
                                 )}
                                 <Button
                                   variant="ghost"
-                                  size="icon-sm"
+                                  size="icon-xs"
                                   onClick={() => openEditDialog(s)}
                                 >
                                   <Pencil />
                                 </Button>
                               </div>
-                              <div className="flex items-start gap-1.5 pr-14 text-base font-bold">
+                              <div className="flex items-start gap-1 pr-10 text-sm font-bold">
                                 {s.completed && (
-                                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                                  <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
                                 )}
                                 <span className="min-w-0 break-words">{s.title}</span>
                               </div>
                               {!s.activity && s.type !== "rest" && s.type !== "gym" && (
-                                <div className="mt-1 text-sm text-muted-foreground">
+                                <div className="mt-0.5 text-xs text-muted-foreground">
                                   Distance:{" "}
                                   {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
                                 </div>
@@ -541,14 +541,14 @@ export default function Calendar() {
                             </div>
                           ))}
                           {dayUnmatched.map((a) => (
-                            <div key={a.id} className={`rounded-md ${ACTIVITY_BG} p-3`}>
+                            <div key={a.id} className={`rounded-md ${ACTIVITY_BG} p-2`}>
                               <ActivityStats activity={a} />
                             </div>
                           ))}
-                          <div className="grid flex-1 grid-cols-2 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <div className="grid flex-1 grid-cols-2 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="xs"
                               className="border border-dashed border-border text-muted-foreground"
                               onClick={() => openAddDialog(day, "easy-run")}
                             >
@@ -556,7 +556,7 @@ export default function Calendar() {
                             </Button>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="xs"
                               className="border border-dashed border-border text-muted-foreground"
                               onClick={() => openAddDialog(day, "session")}
                             >
@@ -564,7 +564,7 @@ export default function Calendar() {
                             </Button>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="xs"
                               className="border border-dashed border-border text-muted-foreground"
                               onClick={() => addRestSession(day)}
                             >
@@ -572,7 +572,7 @@ export default function Calendar() {
                             </Button>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="xs"
                               className="border border-dashed border-border text-muted-foreground"
                               onClick={() => openAddDialog(day, "gym")}
                             >
@@ -583,8 +583,8 @@ export default function Calendar() {
                       </TableCell>
                     );
                   })}
-                  <TableCell className="align-top whitespace-normal">
-                    <div className="mb-0.5 text-xs text-muted-foreground">
+                  <TableCell className="align-top whitespace-normal p-1.5">
+                    <div className="mb-0.5 text-[0.65rem] text-muted-foreground">
                       {isFutureWeek ? "Planned" : "Distance (km)"}
                     </div>
                     {isFutureWeek ? (
@@ -599,30 +599,30 @@ export default function Calendar() {
                             onChange={(e) => setPlanInput(e.target.value)}
                             onBlur={() => savePlan(weekStart)}
                             onKeyDown={(e) => e.key === "Enter" && savePlan(weekStart)}
-                            className="h-8 w-20 text-xl font-bold"
+                            className="h-7 w-16 text-base font-bold"
                           />
                         ) : (
                           <button
                             type="button"
                             onClick={() => startEditPlan(weekStart, plannedDistance)}
-                            className="text-xl leading-tight font-bold text-foreground hover:text-primary"
+                            className="text-base leading-tight font-bold text-foreground hover:text-primary"
                             title="Set planned distance for this week"
                           >
                             {(plannedDistance / 1000).toFixed(1)}
                           </button>
                         )
                       ) : (
-                        <div className="text-xl leading-tight font-bold text-foreground">
+                        <div className="text-base leading-tight font-bold text-foreground">
                           {(plannedDistance / 1000).toFixed(1)}
                         </div>
                       )
                     ) : (
                       <>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-2xl leading-tight font-bold text-foreground">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-lg leading-tight font-bold text-foreground">
                             {(actual.distance / 1000).toFixed(1)}
                           </span>
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             /{" "}
                             {hasNoSessions ? (
                               isEditingPlan ? (
@@ -635,7 +635,7 @@ export default function Calendar() {
                                   onChange={(e) => setPlanInput(e.target.value)}
                                   onBlur={() => savePlan(weekStart)}
                                   onKeyDown={(e) => e.key === "Enter" && savePlan(weekStart)}
-                                  className="inline-block h-6 w-14 px-1 text-sm"
+                                  className="inline-block h-5 w-12 px-1 text-xs"
                                 />
                               ) : (
                                 <button
@@ -652,8 +652,8 @@ export default function Calendar() {
                             )}
                           </span>
                         </div>
-                        <div className="mt-2 text-xs text-muted-foreground">Time</div>
-                        <div className="text-sm font-medium text-foreground">
+                        <div className="mt-1.5 text-[0.65rem] text-muted-foreground">Time</div>
+                        <div className="text-xs font-medium text-foreground">
                           {formatDuration(actual.duration)}
                         </div>
                       </>
