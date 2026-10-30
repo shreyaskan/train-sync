@@ -90,7 +90,7 @@ const SESSION_TYPE_BG: Record<string, string> = {
   race: "bg-[#ff0000]/40",
   "time trial": "bg-amber-500/15",
   gym: "bg-[#f0ba65]/40",
-  rest: "bg-[#e3d56b]/40",
+  rest: "bg-transparent",
 };
 const ACTIVITY_BG = "bg-[#81d13f]/40";
 
