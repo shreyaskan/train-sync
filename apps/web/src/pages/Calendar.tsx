@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import { cn } from "cn";
+import { addDays } from "@/lib/utils";
 import { api, type Activity, type Session, type WeeklyPlan } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,6 @@ function sessionBg(session: Session) {
   return SESSION_TYPE_BG[session.type] ?? SESSION_TYPE_BG.training;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function mondayOf(date: Date): Date {
@@ -366,9 +366,9 @@ export default function Calendar() {
   const lastOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
   const weeks = [];
   for (let weekStart = mondayOf(monthAnchor); weekStart <= lastOfMonth; ) {
-    const days = Array.from({ length: 7 }, (_, d) => new Date(weekStart.getTime() + d * DAY_MS));
+    const days = Array.from({ length: 7 }, (_, d) => addDays(weekStart, d));
     weeks.push({ weekStart, days });
-    weekStart = new Date(weekStart.getTime() + 7 * DAY_MS);
+    weekStart = addDays(weekStart, 7);
   }
 
   return (

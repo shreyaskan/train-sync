@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { api, type Activity, type Session } from "../api.js";
+import { addDays } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
 const WINDOW_WEEKS = 16;
 // Default window starts 3 weeks before the current week.
 const PAST_WEEKS = 3;
@@ -61,7 +60,7 @@ export default function MileageChart() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
   const today = new Date();
-  const [anchor, setAnchor] = useState(() => mondayOf(new Date(today.getTime() - PAST_WEEKS * WEEK_MS)));
+  const [anchor, setAnchor] = useState(() => mondayOf(addDays(today, -PAST_WEEKS * 7)));
 
   useEffect(() => {
     Promise.all([api.getSessions(), api.getActivities()])
@@ -78,8 +77,8 @@ export default function MileageChart() {
   const unmatchedActivities = activities.filter((a) => !linkedActivityIds.has(a.id));
 
   const weeks = Array.from({ length: WINDOW_WEEKS }, (_, i) => {
-    const weekStart = new Date(anchor.getTime() + i * WEEK_MS);
-    const weekEnd = new Date(weekStart.getTime() + WEEK_MS);
+    const weekStart = addDays(anchor, i * 7);
+    const weekEnd = addDays(weekStart, 7);
     const inWeek = (d: Date) => d >= weekStart && d < weekEnd;
 
     const weekSessions = sessions.filter((s) => inWeek(new Date(s.date)));
@@ -140,21 +139,21 @@ export default function MileageChart() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAnchor(new Date(anchor.getTime() - 4 * WEEK_MS))}
+            onClick={() => setAnchor(addDays(anchor, -28))}
           >
             <ChevronLeft /> Prev
           </Button>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setAnchor(mondayOf(new Date(today.getTime() - PAST_WEEKS * WEEK_MS)))}
+            onClick={() => setAnchor(mondayOf(addDays(today, -PAST_WEEKS * 7)))}
           >
             Today
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAnchor(new Date(anchor.getTime() + 4 * WEEK_MS))}
+            onClick={() => setAnchor(addDays(anchor, 28))}
           >
             Next <ChevronRight />
           </Button>
