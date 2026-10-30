@@ -147,7 +147,7 @@ function ActivityStats({ activity, showName = true }: { activity: Activity; show
   return (
     <div className="mt-1.5 space-y-1 text-sm text-muted-foreground">
       {showName && (
-        <div className="truncate text-base font-bold text-foreground">
+        <div className="break-words text-base font-bold text-foreground">
           {activity.name ?? "Untitled"}
         </div>
       )}
@@ -429,16 +429,16 @@ export default function Calendar() {
       </div>
 
       <div className="rounded-lg border border-border">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16"></TableHead>
+              <TableHead className="w-[6%]"></TableHead>
               {DAY_LABELS.map((label) => (
-                <TableHead key={label} className="w-[13%] min-w-0">
+                <TableHead key={label} className="w-[11.5%] min-w-0">
                   {label}
                 </TableHead>
               ))}
-              <TableHead className="w-[14%] min-w-0">Total</TableHead>
+              <TableHead className="w-[13.5%] min-w-0">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -523,11 +523,11 @@ export default function Calendar() {
                                   <Pencil />
                                 </Button>
                               </div>
-                              <div className="flex items-center gap-1.5 pr-14 text-base font-bold">
+                              <div className="flex items-start gap-1.5 pr-14 text-base font-bold">
                                 {s.completed && (
-                                  <CheckCircle2 className="size-4 shrink-0 text-primary" />
+                                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
                                 )}
-                                <span className="truncate">{s.title}</span>
+                                <span className="min-w-0 break-words">{s.title}</span>
                               </div>
                               {!s.activity && s.type !== "rest" && s.type !== "gym" && (
                                 <div className="mt-1 text-sm text-muted-foreground">
