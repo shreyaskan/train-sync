@@ -30,8 +30,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ALL_TYPES = ["training", "race", "time trial", "gym", "rest"] as const;
-type SessionType = (typeof ALL_TYPES)[number];
+const ALL_TYPES = ["session", "race", "time trial", "gym", "rest"] as const;
+// "easy" isn't selectable anywhere — it's the fixed, hidden type the "Easy
+// run" quick-add assigns, kept distinct from "session" so easy runs don't
+// pick up the generic session color.
+type SessionType = (typeof ALL_TYPES)[number] | "easy";
 
 // The three "quick add" buttons (besides the generic "Session" one) each
 // create a session with a fixed/implied type and a reduced field set.
@@ -54,8 +57,8 @@ const ADD_CONFIG: Record<
     showDistance: true,
     showType: true,
     showDescription: false,
-    typeOptions: ["training", "race", "time trial"],
-    defaultType: "training",
+    typeOptions: ["session", "race", "time trial"],
+    defaultType: "session",
     defaultTitle: "",
   },
   "easy-run": {
@@ -64,7 +67,7 @@ const ADD_CONFIG: Record<
     showType: false,
     showDescription: false,
     typeOptions: [],
-    defaultType: "training",
+    defaultType: "easy",
     defaultTitle: "",
   },
   gym: {
@@ -87,11 +90,15 @@ type SessionDialogState =
 // Each session type gets its own card background so the type is visible at a
 // glance on the calendar without showing a text label.
 const SESSION_TYPE_BG: Record<string, string> = {
-  training: "bg-primary/10",
+  session: "bg-[#f02483]/40",
   race: "bg-[#ff0000]/40",
   "time trial": "bg-[#d124f0]/40",
   gym: "bg-[#7c00db]/40",
   rest: "bg-transparent",
+  // "easy" (easy runs) and the legacy "training" value (everything created
+  // before "session" existed as its own type) share the same neutral look.
+  easy: "bg-primary/10",
+  training: "bg-primary/10",
 };
 const ACTIVITY_BG = "bg-[#81d13f]/40";
 
@@ -100,7 +107,7 @@ const ACTIVITY_BG = "bg-[#81d13f]/40";
 // matters while it's still planned, completion matters once it's done.
 function sessionBg(session: Session) {
   if (session.completed) return ACTIVITY_BG;
-  return SESSION_TYPE_BG[session.type] ?? SESSION_TYPE_BG.training;
+  return SESSION_TYPE_BG[session.type] ?? SESSION_TYPE_BG.session;
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -175,7 +182,7 @@ export default function Calendar() {
   const [dialog, setDialog] = useState<SessionDialogState | null>(null);
   const [formTitle, setFormTitle] = useState("");
   const [formDistance, setFormDistance] = useState("");
-  const [formType, setFormType] = useState<SessionType>("training");
+  const [formType, setFormType] = useState<SessionType>("session");
   const [formDescription, setFormDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -221,11 +228,9 @@ export default function Calendar() {
     setDialog({ mode: "edit", session });
     setFormTitle(session.title);
     setFormDistance(session.targetDistance != null ? String(session.targetDistance / 1000) : "");
-    setFormType(
-      (ALL_TYPES as readonly string[]).includes(session.type)
-        ? (session.type as SessionType)
-        : "training",
-    );
+    // Type isn't editable here (the dialog no longer shows a type selector),
+    // so this just carries the session's existing type through unchanged.
+    setFormType(session.type as SessionType);
     setFormDescription(session.description ?? "");
   };
 
@@ -242,7 +247,7 @@ export default function Calendar() {
     setDialog(null);
     setFormTitle("");
     setFormDistance("");
-    setFormType("training");
+    setFormType("session");
     setFormDescription("");
   };
 
@@ -271,7 +276,7 @@ export default function Calendar() {
         await api.createSession({
           date: dialog.date.toISOString(),
           title: isEasyRun ? `Easy ${formDistance}` : formTitle,
-          type: isEasyRun ? "training" : formType,
+          type: isEasyRun ? "easy" : formType,
           targetDistance,
           description,
         });
