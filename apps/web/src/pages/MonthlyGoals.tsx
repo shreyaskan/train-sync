@@ -116,9 +116,7 @@ export default function MonthlyGoals() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Goals</h1>
-        <p className="text-sm text-muted-foreground">
-          A checklist per month — same calendar shape as the rest of the app, by quarter instead of by week.
-        </p>
+        <p className="text-sm text-muted-foreground">A checklist per month.</p>
       </div>
 
       {rows.map((row) => {
