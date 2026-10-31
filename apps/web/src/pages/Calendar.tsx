@@ -520,7 +520,7 @@ export default function Calendar() {
                                     <Eye />
                                   </Button>
                                 )}
-                                {s.type === "gym" && (
+                                {s.type === "gym" && !s.completed && (
                                   <Button
                                     variant="ghost"
                                     size="icon-xs"
