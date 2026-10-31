@@ -348,7 +348,7 @@ export default function Calendar() {
       ? {
           showTitle: true,
           showDistance: dialog.session.type !== "gym",
-          showType: true,
+          showType: false,
           showDescription: dialog.session.type === "gym",
           typeOptions: [...ALL_TYPES],
         }
@@ -555,6 +555,12 @@ export default function Calendar() {
                                   {s.targetDistance != null ? formatKm(s.targetDistance) : "-"}
                                 </div>
                               )}
+                              {s.type === "gym" && s.description && (
+                                <div
+                                  className="mt-0.5 break-words text-xs text-muted-foreground [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:my-0.5 [&_ul]:list-disc [&_ul]:pl-4"
+                                  dangerouslySetInnerHTML={{ __html: s.description }}
+                                />
+                              )}
                               {s.activity && (
                                 <ActivityStats activity={s.activity} showName={false} />
                               )}
@@ -699,20 +705,20 @@ export default function Calendar() {
           </DialogHeader>
           {dialog?.mode === "view-gym" ? (
             <div className="space-y-1.5">
-              <Label>Description</Label>
+              <Label>Details</Label>
               <div
                 className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
                 dangerouslySetInnerHTML={{
                   __html:
                     dialog.session.description ||
-                    '<p class="text-muted-foreground">No description</p>',
+                    '<p class="text-muted-foreground">No details</p>',
                 }}
               />
             </div>
           ) : dialog?.mode === "complete-gym" ? (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Description</Label>
+                <Label>Details</Label>
                 <RichTextEditor value={formDescription} onChange={setFormDescription} />
               </div>
               <DialogFooter>
@@ -769,7 +775,7 @@ export default function Calendar() {
               )}
               {formConfig?.showDescription && (
                 <div className="space-y-1.5">
-                  <Label>Description</Label>
+                  <Label>Details</Label>
                   <RichTextEditor value={formDescription} onChange={setFormDescription} />
                 </div>
               )}
