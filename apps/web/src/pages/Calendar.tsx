@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Eye, Pencil, Trash2 } from "lucide-react";
 import { cn } from "cn";
 import { addDays } from "@/lib/utils";
 import { api, type Activity, type Session, type WeeklyPlan } from "../api.js";
@@ -81,7 +81,8 @@ const ADD_CONFIG: Record<
 type SessionDialogState =
   | { mode: "add"; kind: AddKind; date: Date }
   | { mode: "edit"; session: Session }
-  | { mode: "complete-gym"; session: Session };
+  | { mode: "complete-gym"; session: Session }
+  | { mode: "view-gym"; session: Session };
 
 // Each session type gets its own card background so the type is visible at a
 // glance on the calendar without showing a text label.
@@ -225,12 +226,16 @@ export default function Calendar() {
         ? (session.type as SessionType)
         : "training",
     );
-    setFormDescription("");
+    setFormDescription(session.description ?? "");
   };
 
   const openCompleteGymDialog = (session: Session) => {
     setDialog({ mode: "complete-gym", session });
     setFormDescription(session.description ?? "");
+  };
+
+  const openViewGymDialog = (session: Session) => {
+    setDialog({ mode: "view-gym", session });
   };
 
   const closeDialog = () => {
@@ -254,7 +259,7 @@ export default function Calendar() {
 
   const submitSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!dialog || dialog.mode === "complete-gym") return;
+    if (!dialog || dialog.mode === "complete-gym" || dialog.mode === "view-gym") return;
     const isEasyRun = dialog.mode === "add" && dialog.kind === "easy-run";
     if (isEasyRun ? !formDistance.trim() : !formTitle.trim()) return;
 
@@ -509,6 +514,16 @@ export default function Calendar() {
                                   <Button
                                     variant="ghost"
                                     size="icon-xs"
+                                    title="View description"
+                                    onClick={() => openViewGymDialog(s)}
+                                  >
+                                    <Eye />
+                                  </Button>
+                                )}
+                                {s.type === "gym" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-xs"
                                     title="Complete gym session"
                                     onClick={() => openCompleteGymDialog(s)}
                                   >
@@ -523,7 +538,12 @@ export default function Calendar() {
                                   <Pencil />
                                 </Button>
                               </div>
-                              <div className="flex items-start gap-1 pr-10 text-sm font-bold">
+                              <div
+                                className={cn(
+                                  "flex items-start gap-1 text-sm font-bold",
+                                  s.type === "gym" ? "pr-16" : "pr-10",
+                                )}
+                              >
                                 {s.completed && (
                                   <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
                                 )}
@@ -677,7 +697,19 @@ export default function Calendar() {
                 )}
             </DialogTitle>
           </DialogHeader>
-          {dialog?.mode === "complete-gym" ? (
+          {dialog?.mode === "view-gym" ? (
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <div
+                className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{
+                  __html:
+                    dialog.session.description ||
+                    '<p class="text-muted-foreground">No description</p>',
+                }}
+              />
+            </div>
+          ) : dialog?.mode === "complete-gym" ? (
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label>Description</Label>
