@@ -89,8 +89,8 @@ type SessionDialogState =
 const SESSION_TYPE_BG: Record<string, string> = {
   training: "bg-primary/10",
   race: "bg-[#ff0000]/40",
-  "time trial": "bg-amber-500/15",
-  gym: "bg-[#f0ba65]/40",
+  "time trial": "bg-[#d124f0]/40",
+  gym: "bg-[#7c00db]/40",
   rest: "bg-transparent",
 };
 const ACTIVITY_BG = "bg-[#81d13f]/40";
