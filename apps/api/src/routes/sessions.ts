@@ -5,7 +5,11 @@ export async function sessionRoutes(app: FastifyInstance) {
   app.get("/sessions", async () => {
     return prisma.session.findMany({
       include: { activity: true },
-      orderBy: { date: "asc" },
+      // Same-day sessions share the same date (no time-of-day), so without
+      // this tiebreaker their relative order is undefined — this keeps
+      // the most recently added one last instead of wherever the DB
+      // happens to return it.
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
     });
   });
 
