@@ -74,8 +74,9 @@ function utcDayRange(date: Date) {
 }
 
 // Gym and rest sessions have no corresponding Garmin activity to sync — only
-// run-like sessions get auto-matched.
-const MATCHABLE_SESSION_TYPES = ["training", "race", "time trial"];
+// run-like sessions get auto-matched. "training" is kept for sessions created
+// before "session"/"easy" existed as separate types.
+const MATCHABLE_SESSION_TYPES = ["session", "easy", "race", "time trial", "training"];
 
 // Links a day's newly-synced activities to that day's planned sessions, so
 // completing workouts on Garmin marks the plan done without manual
